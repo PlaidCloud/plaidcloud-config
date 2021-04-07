@@ -1,9 +1,9 @@
 database:
-  hostname: 
+  hostname: "{{ .Release.Name }}-postgres-headless"
 environment:
-  hostname: "{namespace}.plaidcloud.io"
-  designation: 
-  tempdir: 
+  hostname: "{{ Release.Namespace }}.plaidcloud.io"
+  designation: dev
+  tempdir: ""
   verify_ssl: false
 features:
   async_copy: true
@@ -16,7 +16,7 @@ features:
   table_update_recreate: true
   use_numeric_cast: true
 rabbitmq:
-  hostname: plaid-rabbitmq
+  hostname: {{ .Release.Name }}-rabbitmq
   port: 5379
   username: plaidcloud
   password: some arbitrary password
@@ -27,14 +27,14 @@ rabbitmq:
 redisClient:
   timeout: 1
 services:
-  auth: http://plaid-auth
-  client: http://plaid-client
-  cron: http://plaid-cron
-  data_explorer: http://plaid-data-explorer
-  docs: http://plaid-docs
-  flashback: http://plaid-flashback/rpc
-  monitor: http://plaid-monitor
-  plaidxl: http://plaid-plaidxl
-  rpc: http://plaid-rpc/json_rpc
-  superset: http://plaid-superset
-  workflow: http://plaid-workflow
+  auth: http://{{ .Release.Name }}-auth
+  client: http://{{ .Release.Name }}-client
+  cron: http://{{ .Release.Name }}-cron
+  data_explorer: http://{{ .Release.Name }}-data-explorer
+  docs: http://{{ .Release.Name }}-docs
+  flashback: http://{{ .Release.Name }}-flashback/rpc
+  monitor: http://{{ .Release.Name }}-monitor
+  plaidxl: http://{{ .Release.Name }}-plaidxl
+  rpc: http://{{ .Release.Name }}-rpc/json_rpc
+  superset: http://{{ .Release.Name }}-superset
+  workflow: http://{{ .Release.Name }}-workflow

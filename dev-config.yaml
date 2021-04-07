@@ -1,0 +1,40 @@
+database:
+  hostname: 
+environment:
+  hostname: "{namespace}.plaidcloud.io"
+  designation: 
+  tempdir: 
+  verify_ssl: false
+features:
+  async_copy: true
+  backward_compatible_state: true
+  decrypted_accounts: true
+  enable_cors: false
+  fast_clean_csv: true
+  flashback: true
+  google_login: true
+  table_update_recreate: true
+  use_numeric_cast: true
+rabbitmq:
+  hostname: plaid-rabbitmq
+  port: 5379
+  username: plaidcloud
+  password: some arbitrary password
+  vhost: plaidcloud
+  eventUsername: plaidcloud-events
+  eventPassword: another arbitrary password
+  eventVhost: plaidcloud-events
+redisClient:
+  timeout: 1
+services:
+  auth: http://plaid-auth
+  client: http://plaid-client
+  cron: http://plaid-cron
+  data_explorer: http://plaid-data-explorer
+  docs: http://plaid-docs
+  flashback: http://plaid-flashback/rpc
+  monitor: http://plaid-monitor
+  plaidxl: http://plaid-plaidxl
+  rpc: http://plaid-rpc/json_rpc
+  superset: http://plaid-superset
+  workflow: http://plaid-workflow

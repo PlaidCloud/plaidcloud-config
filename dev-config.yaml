@@ -1,7 +1,7 @@
 database:
-  hostname: "{{ .Release.Name }}-postgres-headless"
+  hostname: {{ .Release.Name }}-postgres-headless
 environment:
-  hostname: "{{ Release.Namespace }}.plaidcloud.io"
+  hostname: {{ .Release.Namespace }}.plaidcloud.io
   designation: dev
   tempdir: ""
   verify_ssl: false

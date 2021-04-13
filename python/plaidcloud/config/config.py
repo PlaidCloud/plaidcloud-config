@@ -36,6 +36,9 @@ class RMQConfig(NamedTuple):
     username: str
     password: str
     vhost: str
+    event_username: str
+    event_password: str
+    event_vhost: str
     hostname: str = "rabbit-rabbitmq-ha"
     port: int = 5679
 
@@ -119,7 +122,7 @@ class PlaidConfig:
     @property
     def redis_client(self) -> RedisConfig:
         """Settings for Redis client connections."""
-        redis_config = self.cfg.get('redisClient', {})
+        redis_config = self.cfg.get('redis_client', {})
         return RedisConfig(**redis_config)
 
     @property

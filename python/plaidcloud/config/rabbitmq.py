@@ -21,6 +21,8 @@ class RMQCredentials(NamedTuple):
 class RMQConfig():
     def __init__(self, cfg):
         self.cfg = cfg.get("rabbitmq", {})
-        self.master =  RMQCredentials(**self.cfg.get("master", {}))
-        self.private = RMQCredentials(**self.cfg.get("private", {}))
-        self.public = RMQCredentials(**self.cfg.get("public", {}))
+        self.hostname: str = self.cfg.get("hostname", "plaid-rabbitmq")
+        self.port: int = int(self.cfg.get("port", 5672))
+        self.master: RMQCredentials =  RMQCredentials(**self.cfg.get("master", {}))
+        self.private: RMQCredentials = RMQCredentials(**self.cfg.get("private", {}))
+        self.public: RMQCredentials = RMQCredentials(**self.cfg.get("public", {}))

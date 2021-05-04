@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+# coding=utf-8
+
+__author__ = "Garrett Bates"
+__copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
+__credits__ = ["Garrett Bates"]
+__license__ = "Apache 2.0"
+__version__ = "0.1.7"
+__maintainer__ = "Garrett Bates"
+__email__ = "garrett.bates@tartansolutions.com"
+__status__ = "Development"
+
 from setuptools import setup
 
 from os import path
@@ -10,15 +22,15 @@ setup(
     author='Garrett Bates',
     author_email='garrett.bates@tartansolutions.com',
     description="Basic utility to parse a configuration for PlaidCloud application stack.",
-    version="0.1.2",
-    license='MIT',
+    version="0.1.7",
+    license='Apache 2.0',
     install_requires=[
         'pyyaml',
     ],
     keywords='plaid plaidcloud',
     classifiers=[
         "Programming Language :: Python :: 3.7",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: Unix",
     ],
     packages=['plaidcloud.config'],

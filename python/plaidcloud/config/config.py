@@ -1,15 +1,31 @@
 #!/usr/bin/env python
 # coding=utf-8
+
+__author__ = "Garrett Bates"
+__copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
+__credits__ = ["Garrett Bates"]
+__license__ = "Apache 2.0"
+__version__ = "0.1.7"
+__maintainer__ = "Garrett Bates"
+__email__ = "garrett.bates@tartansolutions.com"
+__status__ = "Development"
+
 """Loads the configuration file used by plaid apps in kubernetes."""
 import os
 import yaml
 from typing import NamedTuple
+from plaidcloud.config.redis import RedisConfig
+from plaidcloud.config.rabbitmq import RMQConfig
 
 CONFIG_PATH = os.environ.get('PLAID_CONFIG_PATH', '/etc/plaidcloud/config.yaml')
 
 
 class DatabaseConfig(NamedTuple):
     hostname: str
+    port: int
+    superuser: str
+    password: str
+    system: str
 
 
 class EnvironmentConfig(NamedTuple):
@@ -29,38 +45,6 @@ class FeatureConfig(NamedTuple):
     google_login: bool = True
     table_update_recreate: bool = True
     use_numeric_cast: bool = True
-
-
-class RMQConfig(NamedTuple):
-    """Connection settings for a RabbitMQ instance."""
-    username: str
-    password: str
-    vhost: str
-    hostname: str = "rabbit-rabbitmq-ha"
-    port: int = 5679
-
-
-class RedisConfig(NamedTuple):
-    """Settings for Redis client connections."""
-    timeout: int = 1
-
-
-class RedisURLConfig(NamedTuple):
-    """URLs for Redis connections."""
-    activity: str = "redis://redis-master/4"
-    analyze_cache: str = "redis://redis-master/6"
-    cron_jobs: str = "redis://redis-master/1"
-    cron_running_jobs: str = "redis://redis-master/2"
-    data_connection_cache: str = "redis://redis-master/11"
-    document_cache: str = "redis://redis-master/7"
-    hierarchy_cache: str = "redis://redis-master/10"
-    identity_cache: str = "redis://redis-master/8"
-    ipython_registry: str = "redis://redis-master/3"
-    oauth_cache: str = "redis://redis-master/9"
-    redis_scheduler: str = "redis://redis-master/13"
-    scopes_cache: str = "redis://redis-master/12"
-    session: str = "redis://redis-master/0"
-    transform_container_registry: str = "redis://redis-master/5"
 
 
 class ServiceConfig(NamedTuple):
@@ -83,11 +67,6 @@ class PlaidConfig:
         with open(CONFIG_PATH, 'r') as stream:
             # Leave exception unhandled. We don't want to start without a valid conf.
             self.cfg = yaml.safe_load(stream)
-
-    @property
-    def log_level(self):
-        """Default log level for workflow-monitor."""
-        return self.cfg.get('logLevel', 'INFO')
 
     @property
     def database(self) -> DatabaseConfig:
@@ -113,20 +92,11 @@ class PlaidConfig:
     @property
     def rabbitmq(self) -> RMQConfig:
         """Configuration settings for RabbitMQ connection."""
-        rmq_config = self.cfg.get('rabbitmq', {})
-        return RMQConfig(**rmq_config)
+        return RMQConfig(self.cfg)
 
     @property
-    def redis_client(self) -> RedisConfig:
-        """Settings for Redis client connections."""
-        redis_config = self.cfg.get('redisClient', {})
-        return RedisConfig(**redis_config)
-
-    @property
-    def redis_urls(self) -> RedisURLConfig:
-        """URLs for Redis connections."""
-        redis_config = self.cfg.get('redis', {})
-        return RedisURLConfig(**redis_config)
+    def redis(self) -> RedisConfig:
+        return RedisConfig(self.cfg)
 
     @property
     def service_urls(self) -> ServiceConfig:

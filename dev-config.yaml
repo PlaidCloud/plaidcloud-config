@@ -1,0 +1,65 @@
+database:
+  hostname: plaid-postgres-headless
+  port: 5432
+  superuser: postgres
+  password: postgres
+  system: postgres
+environment:
+  hostname: {namespace}.plaidcloud.io
+  designation: dev
+  tempdir: ""
+  verify_ssl: false
+features:
+  async_copy: true
+  backward_compatible_state: true
+  decrypted_accounts: true
+  enable_cors: false
+  fast_clean_csv: true
+  flashback: true
+  google_login: true
+  table_update_recreate: true
+  use_numeric_cast: true
+rabbitmq:
+  hostname: plaid-rabbitmq
+  port: 5672
+  master:
+    username: master
+    password: some big password
+    default_vhost: /
+  private:
+    username: plaidcloud
+    password: some arbitrary password
+    default_vhost: plaidcloud
+  public:
+    username: plaidcloud-events
+    password: another arbitrary password
+    default_vhost: plaidcloud-events
+redis:
+  socket_timeout: 2.5
+  urls:
+    - activity: "redis://plaid-redis-master/4"
+    - analyze_cache: "redis://plaid-redis-master/6"
+    - cron_jobs: "redis://plaid-redis-master/1"
+    - cron_running_jobs: "redis://plaid-redis-master/2"
+    - data_connection_cache: "redis://plaid-redis-master/11"
+    - document_cache: "redis://plaid-redis-master/7"
+    - hierarchy_cache: "redis://plaid-redis-master/10"
+    - identity_cache: "redis://plaid-redis-master/8"
+    - ipython_registry: "redis://plaid-redis-master/3"
+    - oauth_cache: "redis://plaid-redis-master/9"
+    - redis_scheduler: "redis://plaid-redis-master/13"
+    - scopes_cache: "redis://plaid-redis-master/12"
+    - session: "redis://plaid-redis-master/0"
+    - transform_container_registry: "redis://plaid-redis-master/5"
+services:
+  auth: http://plaid-auth
+  client: http://plaid-client
+  cron: http://plaid-cron
+  data_explorer: http://plaid-data-explorer
+  docs: http://plaid-docs
+  flashback: http://plaid-flashback/rpc
+  monitor: http://plaid-monitor
+  plaidxl: http://plaid-plaidxl
+  rpc: http://plaid-rpc/json_rpc
+  superset: http://plaid-superset
+  workflow: http://plaid-workflow

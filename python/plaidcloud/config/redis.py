@@ -5,7 +5,7 @@ __author__ = "Garrett Bates"
 __copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
@@ -19,7 +19,7 @@ from urllib import parse as urlparse
 # "redis+sentinel://elaborate_password:plaid-redis-master:6379/plaid/0"
 # "sentinel://plaid-redis-master:6379/plaid/0"
 # "sentinel://elaborate_password@plaid-redis-master:6379/plaid/0"
-# "sentinel://elaborate_password@plaid-redis-master,different-host:6380/plaid/1"
+# "sentinel://elaborate_password@plaid-redis-master,different-host:6380/1?name=goof&socket_timeout=2.5"
 
 class ParsedRedisURL(NamedTuple):
     hosts: List[Tuple[str, int]]

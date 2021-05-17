@@ -3,11 +3,11 @@ database:
   port: 5432
   superuser: postgres
   password: postgres
-  system: postgres
+  system: postgresql
 environment:
   hostname: {namespace}.plaidcloud.io
   designation: dev
-  tempdir: ""
+  tempdir: /tmp/
   verify_ssl: false
 features:
   async_copy: true
@@ -23,43 +23,43 @@ rabbitmq:
   hostname: plaid-rabbitmq
   port: 5672
   master:
-    username: master
-    password: some big password
     default_vhost: /
+    username: master
+    password: master
   private:
-    username: plaidcloud
-    password: some arbitrary password
     default_vhost: plaidcloud
+    username: plaidcloud
+    password: plaidcloud
   public:
-    username: plaidcloud-events
-    password: another arbitrary password
-    default_vhost: plaidcloud-events
+    default_vhost: plaidcloud-public
+    username: plaidcloud-public
+    password: plaidcloud-public
 redis:
-  socket_timeout: 2.5
+  socket_timeout: 1
   urls:
-    - activity: "redis://plaid-redis-master/4"
-    - analyze_cache: "redis://plaid-redis-master/6"
-    - cron_jobs: "redis://plaid-redis-master/1"
-    - cron_running_jobs: "redis://plaid-redis-master/2"
-    - data_connection_cache: "redis://plaid-redis-master/11"
-    - document_cache: "redis://plaid-redis-master/7"
-    - hierarchy_cache: "redis://plaid-redis-master/10"
-    - identity_cache: "redis://plaid-redis-master/8"
-    - ipython_registry: "redis://plaid-redis-master/3"
-    - oauth_cache: "redis://plaid-redis-master/9"
-    - redis_scheduler: "redis://plaid-redis-master/13"
-    - scopes_cache: "redis://plaid-redis-master/12"
-    - session: "redis://plaid-redis-master/0"
-    - transform_container_registry: "redis://plaid-redis-master/5"
+    - activity: redis://plaid-redis-master/4
+    - analyze_cache: redis://plaid-redis-master/6
+    - cron_jobs: redis://plaid-redis-master/1
+    - cron_running_jobs: redis://plaid-redis-master/2
+    - data_connection_cache: redis://plaid-redis-master/11
+    - document_cache: redis://plaid-redis-master/7
+    - hierarchy_cache: redis://plaid-redis-master/10
+    - identity_cache: redis://plaid-redis-master/8
+    - ipython_registry: redis://plaid-redis-master/3
+    - oauth_cache: redis://plaid-redis-master/9
+    - redis_scheduler: redis://plaid-redis-master/13
+    - scopes_cache: redis://plaid-redis-master/12
+    - session: redis://plaid-redis-master/0
+    - transform_container_registry: redis://plaid-redis-master/5
 services:
   auth: http://plaid-auth
   client: http://plaid-client
   cron: http://plaid-cron
   data_explorer: http://plaid-data-explorer
   docs: http://plaid-docs
-  flashback: http://plaid-flashback/rpc
+  flashback: http://plaid-flashback/rpc/
   monitor: http://plaid-monitor
   plaidxl: http://plaid-plaidxl
-  rpc: http://plaid-rpc/json_rpc
+  rpc: http://plaid-rpc/json_rpc/
   superset: http://plaid-superset
   workflow: http://plaid-workflow

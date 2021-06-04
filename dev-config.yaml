@@ -60,6 +60,6 @@ services:
   flashback: http://plaid-flashback/rpc/
   monitor: http://plaid-monitor
   plaidxl: http://plaid-plaidxl
-  rpc: http://plaid-rpc/json_rpc/
+  rpc: http://plaid-rpc/json-rpc/
   superset: http://plaid-superset
   workflow: http://plaid-workflow

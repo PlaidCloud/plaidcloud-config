@@ -5,7 +5,7 @@ __author__ = "Garrett Bates"
 __copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
@@ -22,7 +22,7 @@ setup(
     author='Garrett Bates',
     author_email='garrett.bates@tartansolutions.com',
     description="Basic utility to parse a configuration for PlaidCloud application stack.",
-    version="0.1.8",
+    version="0.1.9",
     license='Apache 2.0',
     install_requires=[
         'pyyaml',

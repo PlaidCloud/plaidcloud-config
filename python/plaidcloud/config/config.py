@@ -5,7 +5,7 @@ __author__ = "Garrett Bates"
 __copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
@@ -56,7 +56,7 @@ class ServiceConfig(NamedTuple):
     flashback: str = "http://plaid-flashback.plaid/rpc"
     monitor: str = "http://plaid-monitor.plaid"
     plaidxl: str = "http://plaid-plaidxl.plaid"
-    rpc: str = "http://plaid-rpc.plaid/json_rpc"
+    rpc: str = "http://plaid-rpc.plaid/json-rpc"
     superset: str = "http://plaid-superset.plaid"
     workflow: str = "http://plaid-workflow.plaid"
 
@@ -64,9 +64,12 @@ class ServiceConfig(NamedTuple):
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
-        with open(CONFIG_PATH, 'r') as stream:
-            # Leave exception unhandled. We don't want to start without a valid conf.
-            self.cfg = yaml.safe_load(stream)
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r') as stream:
+                # Leave exception unhandled. We don't want to start without a valid conf.
+                self.cfg = yaml.safe_load(stream)
+        else:
+            self.cfg = {}
 
     @property
     def database(self) -> DatabaseConfig:

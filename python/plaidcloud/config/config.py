@@ -5,7 +5,7 @@ __author__ = "Garrett Bates"
 __copyright__ = "© Copyright 2020-2021, Tartan Solutions, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
@@ -30,6 +30,7 @@ class DatabaseConfig(NamedTuple):
 
 class EnvironmentConfig(NamedTuple):
     hostname: str = "plaidcloud.io"
+    hostnames: list = ["plaidcloud.io"]
     designation: str = "dev"
     tempdir: str = "/tmp"
     verify_ssl: bool = False
@@ -79,7 +80,10 @@ class PlaidConfig:
     @property
     def environment(self) -> EnvironmentConfig:
         env_config = self.cfg.get('environment', {})
-        return EnvironmentConfig(**env_config)
+        ec = EnvironmentConfig(**env_config)
+        if ec.hostnames:
+            ec.hostname = ec.hostnames[0]
+        return ec
 
     @property
     def features(self) -> FeatureConfig:

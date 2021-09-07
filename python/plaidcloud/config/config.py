@@ -82,7 +82,7 @@ class PlaidConfig:
         env_config = self.cfg.get('environment', {})
         ec = EnvironmentConfig(**env_config)
         if ec.hostnames:
-            ec.hostname = ec.hostnames[0]
+            ec = ec._replace(hostname=ec.hostnames[0])
         return ec
 
     @property

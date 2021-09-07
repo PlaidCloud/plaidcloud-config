@@ -13,7 +13,7 @@ __status__ = "Development"
 """Loads the configuration file used by plaid apps in kubernetes."""
 import os
 import yaml
-from typing import NamedTuple
+from typing import List, NamedTuple
 from plaidcloud.config.redis import RedisConfig
 from plaidcloud.config.rabbitmq import RMQConfig
 
@@ -30,6 +30,7 @@ class DatabaseConfig(NamedTuple):
 
 class EnvironmentConfig(NamedTuple):
     hostname: str = "plaidcloud.io"
+    hostnames: List[str] = ["plaidcloud.io", "www.plaidcloud.io", "api.plaidcloud.io"]
     designation: str = "dev"
     tempdir: str = "/tmp"
     verify_ssl: bool = False

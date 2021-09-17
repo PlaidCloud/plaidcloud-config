@@ -12,17 +12,21 @@ __status__ = "Development"
 
 from typing import List, Tuple, NamedTuple
 
+
 class RMQCredentials(NamedTuple):
     """Connection settings for a RabbitMQ instance."""
     username: str
     password: str
     default_vhost: str
 
+
 class RMQConfig():
     def __init__(self, cfg):
         self.cfg = cfg.get("rabbitmq", {})
         self.hostname: str = self.cfg.get("hostname", "plaid-rabbitmq")
         self.port: int = int(self.cfg.get("port", 5672))
+        self.management_port: int = int(self.cfg.get("management_port", 15672))
+
         self.master: RMQCredentials =  RMQCredentials(**self.cfg.get("master", {}))
         self.private: RMQCredentials = RMQCredentials(**self.cfg.get("private", {}))
         self.public: RMQCredentials = RMQCredentials(**self.cfg.get("public", {}))

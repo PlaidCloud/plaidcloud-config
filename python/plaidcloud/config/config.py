@@ -36,6 +36,12 @@ class EnvironmentConfig(NamedTuple):
     verify_ssl: bool = False
 
 
+class KeycloakConfig(NamedTuple):
+    realm: str = "plaid"
+    client_name: str = "plaidcloud-login"
+    keycloak_issuer: str = "https://www.plaidcloud.io/auth/realms/plaid"
+
+
 class FeatureConfig(NamedTuple):
     async_copy: bool = True
     backward_compatible_state: bool = True
@@ -89,6 +95,11 @@ class PlaidConfig:
     def features(self) -> FeatureConfig:
         feature_config = self.cfg.get('features', {})
         return FeatureConfig(**feature_config)
+
+    @property
+    def keycloak(self) -> KeycloakConfig:
+        keycloak_config = self.cfg.get('keycloak', {})
+        return KeycloakConfig(**keycloak_config)
 
     # @property
     # def kubernetes(self):

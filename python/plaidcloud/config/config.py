@@ -39,7 +39,7 @@ class EnvironmentConfig(NamedTuple):
 class KeycloakConfig(NamedTuple):
     realm: str = "PlaidCloud"
     client_name: str = "plaidcloud-login"
-    keycloak_issuer: str = "https://plaidcloud.io/auth/realms/plaidcloud"
+    keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 
 
 class FeatureConfig(NamedTuple):

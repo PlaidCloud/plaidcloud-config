@@ -13,6 +13,7 @@ __status__ = "Development"
 """Loads the configuration file used by plaid apps in kubernetes."""
 import os
 import yaml
+import requests
 from typing import NamedTuple
 from plaidcloud.config.redis import RedisConfig
 from plaidcloud.config.rabbitmq import RMQConfig
@@ -40,6 +41,8 @@ class KeycloakConfig(NamedTuple):
     host: str = "plaidcloud.io"
     realm: str = "PlaidCloud"
     client_name: str = "plaidcloud-login"
+    admin_id: str = "plaidcloud-management"
+    admin_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 
 
@@ -102,6 +105,23 @@ class PlaidConfig:
     def keycloak(self) -> KeycloakConfig:
         keycloak_config = self.cfg.get('keycloak', {})
         return KeycloakConfig(**keycloak_config)
+
+    @property
+    def keycloak_token(self) -> str:
+        """Returns a management admin token for Keycloak, if values are set."""
+        keycloak_config = self.keycloak
+        if keycloak_config.admin_id and keycloak_config.admin_secret:
+            url = f"https://{keycloak_config.host}/auth/realms/master/protocol/openid-connect/token"
+            payload = {
+                "grant_type": "client_credentials",
+                "client_id": keycloak_config.admin_id,
+                "client_secret": keycloak_config.admin_secret
+            }
+            token_response = requests.post(url, data=payload)
+            token_response.raise_for_status()
+            return token_response.json()["access_token"]
+        else:
+            raise ValueError("Admin credentials not configured, unable to request token")
 
     # @property
     # def kubernetes(self):

@@ -20,6 +20,8 @@ from urllib import parse as urlparse
 # "sentinel://plaid-redis-master:6379/plaid/0"
 # "sentinel://elaborate_password@plaid-redis-master:6379/plaid/0"
 # "sentinel://elaborate_password@plaid-redis-master,different-host:6380/1?name=goof&socket_timeout=2.5"
+# "redis-cluster://plaid-redis-master:6379"
+# "redis-cluster://elaborate_password:plaid-redis-master:6379"
 
 class ParsedRedisURL(NamedTuple):
     hosts: List[Tuple[str, int]]
@@ -51,7 +53,10 @@ class RedisConfig():
         def is_sentinel(scheme):
             return url.scheme == 'redis+sentinel' or url.scheme == 'sentinel'
 
-        if url.scheme != 'redis' and not is_sentinel(url.scheme):
+        def is_cluster(schema):
+            return url.scheme == 'redis-cluster'
+
+        if url.scheme != 'redis' and not is_sentinel(url.scheme) and not is_cluster(url_scheme):
             raise ValueError('Unsupported scheme: {}'.format(url.scheme))
 
         def parse_host(s):
@@ -128,6 +133,7 @@ class RedisConfig():
             password=password,
             socket_timeout=options.get("socket_timeout", 1),
             sentinel=is_sentinel(url.scheme),
+            cluster=is_cluster(url.scheme),
             master=(client_type == "master"),
             service_name=service_name,
             database=db,

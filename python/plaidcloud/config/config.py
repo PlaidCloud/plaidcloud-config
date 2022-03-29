@@ -46,6 +46,12 @@ class KeycloakConfig(NamedTuple):
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 
 
+class TenantConfig(NamedTuple):
+    github_token: str
+    github_repo: str
+    github_branch: str
+
+
 class FeatureConfig(NamedTuple):
     async_copy: bool = True
     backward_compatible_state: bool = True
@@ -105,6 +111,11 @@ class PlaidConfig:
     def keycloak(self) -> KeycloakConfig:
         keycloak_config = self.cfg.get('keycloak', {})
         return KeycloakConfig(**keycloak_config)
+
+    @property
+    def tenant(self) -> TenantConfig:
+        tenant_config = self.cfg.get('tenant', {})
+        return TenantConfig(**tenant_config)
 
     @property
     def keycloak_token(self) -> str:

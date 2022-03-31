@@ -10,6 +10,7 @@ __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
 
+from asyncio import FastChildWatcher
 from typing import List, Tuple, NamedTuple
 from urllib import parse as urlparse
 
@@ -31,6 +32,7 @@ class ParsedRedisURL(NamedTuple):
     sentinel: bool
     service_name: str
     database: int = 0
+    cluster: bool = False
     # options: 
 
 

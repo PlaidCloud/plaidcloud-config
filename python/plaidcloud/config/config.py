@@ -41,7 +41,7 @@ class KeycloakConfig(NamedTuple):
     host: str = "plaidcloud.io"
     realm: str = "PlaidCloud"
     client_name: str = "plaidcloud-login"
-    admin_id: str = "plaidcloud-management"
+    admin_id: str = "admin-cli"
     admin_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 

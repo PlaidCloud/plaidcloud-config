@@ -43,6 +43,8 @@ class KeycloakConfig(NamedTuple):
     client_name: str = "plaidcloud-login"
     admin_id: str = "admin-cli"
     admin_secret: str = ""
+    realm_admin_id: str = "admin-cli"
+    realm_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 
 
@@ -116,6 +118,24 @@ class PlaidConfig:
     def tenant(self) -> TenantConfig:
         tenant_config = self.cfg.get('tenant', {})
         return TenantConfig(**tenant_config)
+
+    @property
+    def realm_token(self) -> str:
+        """Returns a management admin token for keycloak for the current realm."""
+        keycloak_config = self.keycloak
+        if not keycloak_config.realm_admin_id or not keycloak_config.realm_secret:
+            raise ValueError("Realm admin credentials not set, unable to generate token")
+
+        realm = keycloak_config.realm
+        url = f"https://{keycloak_config.host}/auth/realms/{realm}/protocol/openid-connect/token"
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": keycloak_config.realm_admin_id,
+            "client_secret": keycloak_config.realm_secret
+        }
+        token_response = requests.post(url, data=payload)
+        token_response.raise_for_status()
+        return token_response.json()["access_token"]
 
     @property
     def keycloak_token(self) -> str:

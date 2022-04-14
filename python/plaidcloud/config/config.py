@@ -133,7 +133,7 @@ class PlaidConfig:
             "client_id": keycloak_config.realm_admin_id,
             "client_secret": keycloak_config.realm_secret
         }
-        token_response = requests.post(url, data=payload)
+        token_response = requests.post(url, data=payload, verify=self.environment.verify_ssl)
         token_response.raise_for_status()
         return token_response.json()["access_token"]
 
@@ -148,7 +148,7 @@ class PlaidConfig:
                 "client_id": keycloak_config.admin_id,
                 "client_secret": keycloak_config.admin_secret
             }
-            token_response = requests.post(url, data=payload)
+            token_response = requests.post(url, data=payload, verify=self.environment.verify_ssl)
             token_response.raise_for_status()
             return token_response.json()["access_token"]
         else:

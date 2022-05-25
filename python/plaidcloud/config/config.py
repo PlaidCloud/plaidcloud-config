@@ -49,9 +49,15 @@ class KeycloakConfig(NamedTuple):
 
 
 class TenantConfig(NamedTuple):
-    github_token: str
-    github_repo: str
-    github_branch: str
+    github_token: str = ""
+    github_repo: str = ""
+    github_branch: str = ""
+    id: str = ""
+    version: str = ""
+    name: str = ""
+    memo: str = ""
+    init_mode: str = ""
+    workspace_id: str = ""
 
 
 class FeatureConfig(NamedTuple):

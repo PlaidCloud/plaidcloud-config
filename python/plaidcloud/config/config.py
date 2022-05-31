@@ -58,6 +58,7 @@ class TenantConfig(NamedTuple):
     memo: str = ""
     init_mode: str = ""
     workspace_id: str = ""
+    cloud_id: int = 0
 
 
 class FeatureConfig(NamedTuple):

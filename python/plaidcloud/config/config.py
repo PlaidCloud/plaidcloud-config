@@ -59,6 +59,7 @@ class TenantConfig(NamedTuple):
     init_mode: str = ""
     workspace_id: str = ""
     cloud_id: int = 0
+    apps: list = []
 
 
 class FeatureConfig(NamedTuple):

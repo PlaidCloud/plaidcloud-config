@@ -146,11 +146,11 @@ class PlaidConfig:
             raise ValueError("Global client credentials not set, unable to generate token")
 
         realm = 'PlaidCloud'
-        token_url = f"https://{keycloak_config.host}/auth/realms/{realm}/protocol/openid-connect/token"
+        token_url = f"https://{self.keycloak.host}/auth/realms/{realm}/protocol/openid-connect/token"
         payload = {
             "grant_type": "client_credentials",
-            "client_id": keycloak_config.realm_admin_id,
-            "client_secret": keycloak_config.realm_secret
+            "client_id": global_config.client_id,
+            "client_secret": global_config.client_secret
         }
         token_response = requests.post(token_url, data=payload, verify=self.environment.verify_ssl)
         token_response.raise_for_status()

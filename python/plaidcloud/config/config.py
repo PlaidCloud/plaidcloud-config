@@ -62,6 +62,12 @@ class TenantConfig(NamedTuple):
     apps: list = []
 
 
+class GlobalConfig(NamedTuple):
+    client_id: str = ""
+    client_secret: str = ""
+    url: str = ""
+
+
 class FeatureConfig(NamedTuple):
     async_copy: bool = True
     backward_compatible_state: bool = True
@@ -126,6 +132,11 @@ class PlaidConfig:
     def tenant(self) -> TenantConfig:
         tenant_config = self.cfg.get('tenant', {})
         return TenantConfig(**tenant_config)
+
+    @property
+    def plaidcloud_global(self) -> GlobalConfig:
+        global_config = self.cfg.get('plaidcloudGlobal', {})
+        return GlobalConfig(**global_config)
 
     @property
     def realm_token(self) -> str:

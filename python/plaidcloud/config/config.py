@@ -135,7 +135,7 @@ class PlaidConfig:
 
     @property
     def plaidcloud_global(self) -> GlobalConfig:
-        global_config = self.cfg.get('plaidcloudGlobal', {})
+        global_config = self.cfg.get('plaidcloud-global', {})
         return GlobalConfig(**global_config)
 
     @property

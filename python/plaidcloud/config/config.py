@@ -139,6 +139,24 @@ class PlaidConfig:
         return GlobalConfig(**global_config)
 
     @property
+    def global_token(self) -> str:
+        """Returns a global token to allow tenant to talk to global plaidcloud"""
+        global_config = self.plaidcloud_global
+        if not global_config.client_id or not global_config.client_secret:
+            raise ValueError("Global client credentials not set, unable to generate token")
+
+        realm = 'PlaidCloud'
+        token_url = f"https://{keycloak_config.host}/auth/realms/{realm}/protocol/openid-connect/token"
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": keycloak_config.realm_admin_id,
+            "client_secret": keycloak_config.realm_secret
+        }
+        token_response = requests.post(token_url, data=payload, verify=self.environment.verify_ssl)
+        token_response.raise_for_status()
+        return token_response.json()["access_token"]
+
+    @property
     def realm_token(self) -> str:
         """Returns a management admin token for keycloak for the current realm."""
         keycloak_config = self.keycloak

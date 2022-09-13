@@ -66,6 +66,7 @@ class GlobalConfig(NamedTuple):
     client_id: str = ""
     client_secret: str = ""
     url: str = ""
+    db_host: str = ""
 
 
 class FeatureConfig(NamedTuple):

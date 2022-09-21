@@ -95,6 +95,13 @@ class ServiceConfig(NamedTuple):
     workflow: str = "http://plaid-workflow.plaid"
 
 
+class OpenSearchConfig(NamedTuple):
+    host: str = ""
+    username: str = "plaidlog"
+    password: str = ""
+    port: int = 9200
+
+
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
@@ -133,6 +140,11 @@ class PlaidConfig:
     def tenant(self) -> TenantConfig:
         tenant_config = self.cfg.get('tenant', {})
         return TenantConfig(**tenant_config)
+
+    @property
+    def opensearch(self) -> OpenSearchConfig:
+        opensearch_config = self.cfg.get('opensearch', {})
+        return OpenSearchConfig(**opensearch_config)
 
     @property
     def plaidcloud_global(self) -> GlobalConfig:

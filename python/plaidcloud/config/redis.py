@@ -10,7 +10,7 @@ __maintainer__ = "Garrett Bates"
 __email__ = "garrett.bates@tartansolutions.com"
 __status__ = "Development"
 
-from asyncio import FastChildWatcher
+# from asyncio import FastChildWatcher
 from typing import List, Tuple, NamedTuple
 from urllib import parse as urlparse
 
@@ -52,13 +52,13 @@ class RedisConfig():
         if isinstance(url, str):
             url = urlparse.urlparse(url)
 
-        def is_sentinel(scheme):
+        def is_sentinel():
             return url.scheme == 'redis+sentinel' or url.scheme == 'sentinel'
 
-        def is_cluster(schema):
+        def is_cluster():
             return url.scheme == 'redis-cluster'
 
-        if url.scheme != 'redis' and not is_sentinel(url.scheme) and not is_cluster(url_scheme):
+        if url.scheme != 'redis' and not is_sentinel() and not is_cluster():
             raise ValueError('Unsupported scheme: {}'.format(url.scheme))
 
         def parse_host(s):
@@ -67,7 +67,7 @@ class RedisConfig():
                 port = int(port)
             else:
                 host = s
-                port = 26379 if is_sentinel(url.scheme) else 6379
+                port = 26379 if is_sentinel() else 6379
             return host, port
 
         if '@' in url.netloc:
@@ -116,7 +116,7 @@ class RedisConfig():
         else:
             service_name = None
 
-        if is_sentinel(url.scheme) and not service_name:
+        if is_sentinel() and not service_name:
             raise ValueError("Sentinel URL has no service name specified. Please add it to the URL's path.")
 
         client_type = options.pop('client_type', 'master')
@@ -134,8 +134,8 @@ class RedisConfig():
             hosts=hosts,
             password=password,
             socket_timeout=options.get("socket_timeout", 1),
-            sentinel=is_sentinel(url.scheme),
-            cluster=is_cluster(url.scheme),
+            sentinel=is_sentinel(),
+            cluster=is_cluster(),
             master=(client_type == "master"),
             service_name=service_name,
             database=db,

@@ -38,6 +38,7 @@ class EnvironmentConfig(NamedTuple):
 
 
 class KeycloakConfig(NamedTuple):
+    url: str = "https://plaidcloud.io/auth"
     host: str = "plaidcloud.io"
     realm: str = "PlaidCloud"
     client_name: str = "plaidcloud-login"
@@ -159,7 +160,7 @@ class PlaidConfig:
             raise ValueError("Global client credentials not set, unable to generate token")
 
         realm = 'PlaidCloud'
-        token_url = f"https://{self.keycloak.host}/auth/realms/{realm}/protocol/openid-connect/token"
+        token_url = f"{self.keycloak.url}/realms/{realm}/protocol/openid-connect/token"
         payload = {
             "grant_type": "client_credentials",
             "client_id": global_config.client_id,
@@ -177,7 +178,7 @@ class PlaidConfig:
             raise ValueError("Realm admin credentials not set, unable to generate token")
 
         realm = keycloak_config.realm
-        url = f"https://{keycloak_config.host}/auth/realms/{realm}/protocol/openid-connect/token"
+        url = f"{keycloak_config.url}/realms/{realm}/protocol/openid-connect/token"
         payload = {
             "grant_type": "client_credentials",
             "client_id": keycloak_config.realm_admin_id,
@@ -192,7 +193,7 @@ class PlaidConfig:
         """Returns a management admin token for Keycloak, if values are set."""
         keycloak_config = self.keycloak
         if keycloak_config.admin_id and keycloak_config.admin_secret:
-            url = f"https://{keycloak_config.host}/auth/realms/master/protocol/openid-connect/token"
+            url = f"{keycloak_config.url}/realms/master/protocol/openid-connect/token"
             payload = {
                 "grant_type": "client_credentials",
                 "client_id": keycloak_config.admin_id,

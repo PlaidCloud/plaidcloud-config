@@ -103,6 +103,13 @@ class OpenSearchConfig(NamedTuple):
     port: int = 9200
 
 
+class LokiConfig(NamedTuple):
+    host: str = "loki-gateway"
+    username: str = "lokiuser"
+    password: str = "lokipassword"
+    port: int = 9200
+
+
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
@@ -146,6 +153,11 @@ class PlaidConfig:
     def opensearch(self) -> OpenSearchConfig:
         opensearch_config = self.cfg.get('opensearch', {})
         return OpenSearchConfig(**opensearch_config)
+
+    @property
+    def loki(self) -> LokiConfig:
+        loki_config = self.cfg.get('loki', {})
+        return LokiConfig(**loki_config)
 
     @property
     def plaidcloud_global(self) -> GlobalConfig:

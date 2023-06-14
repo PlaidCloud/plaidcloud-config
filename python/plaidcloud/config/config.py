@@ -27,6 +27,7 @@ class DatabaseConfig(NamedTuple):
     superuser: str
     password: str
     system: str
+    database_name: str = "plaid_data"
 
 
 class EnvironmentConfig(NamedTuple):

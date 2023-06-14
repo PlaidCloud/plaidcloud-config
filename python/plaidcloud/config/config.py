@@ -107,7 +107,7 @@ class LokiConfig(NamedTuple):
     host: str = "loki-gateway"
     username: str = "lokiuser"
     password: str = "lokipassword"
-    port: int = 9200
+    port: int = 3100
 
 
 class PlaidConfig:

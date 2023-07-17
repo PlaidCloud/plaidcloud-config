@@ -130,8 +130,8 @@ class PlaidConfig:
     def environment(self) -> EnvironmentConfig:
         env_config = self.cfg.get('environment', {})
         ec = EnvironmentConfig(**env_config)
-        # CRL 2021 - the second check here avoids overwriting dev namespaces.
-        if ec.hostnames and ec.hostnames != ["plaidcloud.io"]:
+        # CRL 2023 - Ensures that primary hostname is set based off the `hostnames` parameter if not provided.
+        if not env_config.get('hostname') and (ec.hostnames and ec.hostnames != ["plaidcloud.io"]):
             ec = ec._replace(hostname=ec.hostnames[0])
         return ec
 

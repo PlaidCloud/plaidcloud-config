@@ -103,6 +103,11 @@ class OpenSearchConfig(NamedTuple):
     password: str = ""
     port: int = 9200
 
+class SupersetConfig(NamedTuple):
+    username: str = "admin"
+    password: str = ""
+    use_events_handler: bool = True
+
 
 class LokiConfig(NamedTuple):
     host: str = "loki-gateway"
@@ -237,6 +242,11 @@ class PlaidConfig:
     def service_urls(self) -> ServiceConfig:
         svc_config = self.cfg.get('services', {})
         return ServiceConfig(**svc_config)
+
+    @property
+    def superset(self) -> SupersetConfig:
+        superset_config = self.cfg.get('superset', {})
+        return SupersetConfig(**superset_config)
 
     def __str__(self):
         return repr(self)

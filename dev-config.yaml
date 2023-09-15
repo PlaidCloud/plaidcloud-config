@@ -63,3 +63,7 @@ services:
   rpc: http://plaid-rpc/json-rpc/
   superset: http://plaid-superset
   workflow: http://plaid-workflow
+superset:
+  use_event_handler: false
+  username: admin
+  password: admin

@@ -135,7 +135,7 @@ class PlaidConfig:
     @property
     def environment(self) -> EnvironmentConfig:
         env_config = self.cfg.get('environment', {})
-        ec = EnvironmentConfig(**env_config)
+        ec = EnvironmentConfig(**{k: v for k, v in env_config.items() if k in EnvironmentConfig._fields})
         # CRL 2023 - Ensures that primary hostname is set based off the `hostnames` parameter if not provided.
         if not env_config.get('hostname') and (ec.hostnames and ec.hostnames != ["plaidcloud.io"]):
             ec = ec._replace(hostname=ec.hostnames[0])
@@ -144,32 +144,32 @@ class PlaidConfig:
     @property
     def features(self) -> FeatureConfig:
         feature_config = self.cfg.get('features', {})
-        return FeatureConfig(**feature_config)
+        return FeatureConfig(**{k: v for k, v in feature_config.items() if k in FeatureConfig._fields})
 
     @property
     def keycloak(self) -> KeycloakConfig:
         keycloak_config = self.cfg.get('keycloak', {})
-        return KeycloakConfig(**keycloak_config)
+        return KeycloakConfig(**{k: v for k, v in keycloak_config.items() if k in KeycloakConfig._fields})
 
     @property
     def tenant(self) -> TenantConfig:
         tenant_config = self.cfg.get('tenant', {})
-        return TenantConfig(**tenant_config)
+        return TenantConfig(**{k: v for k, v in tenant_config.items() if k in TenantConfig._fields})
 
     @property
     def opensearch(self) -> OpenSearchConfig:
         opensearch_config = self.cfg.get('opensearch', {})
-        return OpenSearchConfig(**opensearch_config)
+        return OpenSearchConfig(**{k: v for k, v in opensearch_config.items() if k in OpenSearchConfig._fields})
 
     @property
     def loki(self) -> LokiConfig:
         loki_config = self.cfg.get('loki', {})
-        return LokiConfig(**loki_config)
+        return LokiConfig(**{k: v for k, v in loki_config.items() if k in LokiConfig._fields})
 
     @property
     def plaidcloud_global(self) -> GlobalConfig:
         global_config = self.cfg.get('plaidcloud-global', {})
-        return GlobalConfig(**global_config)
+        return GlobalConfig(**{k: v for k, v in global_config.items() if k in GlobalConfig._fields})
 
     # @property
     # def kubernetes(self):
@@ -189,12 +189,12 @@ class PlaidConfig:
     @property
     def service_urls(self) -> ServiceConfig:
         svc_config = self.cfg.get('services', {})
-        return ServiceConfig(**svc_config)
+        return ServiceConfig(**{k: v for k, v in svc_config.items() if k in ServiceConfig._fields})
 
     @property
     def superset(self) -> SupersetConfig:
         superset_config = self.cfg.get('superset', {})
-        return SupersetConfig(**superset_config)
+        return SupersetConfig(**{k: v for k, v in superset_config.items() if k in SupersetConfig._fields})
 
     def __str__(self):
         return repr(self)

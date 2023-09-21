@@ -24,6 +24,7 @@ from urllib import parse as urlparse
 # "redis-cluster://plaid-redis-master:6379"
 # "redis-cluster://elaborate_password:plaid-redis-master:6379"
 
+
 class ParsedRedisURL(NamedTuple):
     hosts: List[Tuple[str, int]]
     password: str
@@ -43,10 +44,8 @@ class RedisConfig():
         # YAML spec has dynamic content specified as lists, so flatten list of KV pairs into a single dict.
         self.urls = {k: v for d in self.cfg.get('urls', []) for k, v in d.items()}
 
-
     def get_url(self, url) -> ParsedRedisURL:
         return self.parse_url(self.urls[url])
-
 
     def parse_url(self, url) -> ParsedRedisURL:
         if isinstance(url, str):

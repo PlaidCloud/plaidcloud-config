@@ -25,7 +25,7 @@ setup(
     version="0.1.21",
     license='Apache 2.0',
     install_requires=[
-        'pyyaml', 'requests'
+        'pyyaml'
     ],
     keywords='plaid plaidcloud',
     classifiers=[

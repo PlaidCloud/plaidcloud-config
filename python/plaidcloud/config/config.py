@@ -13,7 +13,6 @@ __status__ = "Development"
 """Loads the configuration file used by plaid apps in kubernetes."""
 import os
 import yaml
-import requests
 from typing import NamedTuple
 from plaidcloud.config.redis import RedisConfig
 from plaidcloud.config.rabbitmq import RMQConfig
@@ -171,59 +170,6 @@ class PlaidConfig:
     def plaidcloud_global(self) -> GlobalConfig:
         global_config = self.cfg.get('plaidcloud-global', {})
         return GlobalConfig(**global_config)
-
-    @property
-    def global_token(self) -> str:
-        """Returns a global token to allow tenant to talk to global plaidcloud"""
-        global_config = self.plaidcloud_global
-        if not global_config.client_id or not global_config.client_secret:
-            raise ValueError("Global client credentials not set, unable to generate token")
-
-        realm = 'PlaidCloud'
-        token_url = f"{self.keycloak.url}/realms/{realm}/protocol/openid-connect/token"
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": global_config.client_id,
-            "client_secret": global_config.client_secret
-        }
-        token_response = requests.post(token_url, data=payload, verify=self.environment.verify_ssl)
-        token_response.raise_for_status()
-        return token_response.json()["access_token"]
-
-    @property
-    def realm_token(self) -> str:
-        """Returns a management admin token for keycloak for the current realm."""
-        keycloak_config = self.keycloak
-        if not keycloak_config.realm_admin_id or not keycloak_config.realm_secret:
-            raise ValueError("Realm admin credentials not set, unable to generate token")
-
-        realm = keycloak_config.realm
-        url = f"{keycloak_config.url}/realms/{realm}/protocol/openid-connect/token"
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": keycloak_config.realm_admin_id,
-            "client_secret": keycloak_config.realm_secret
-        }
-        token_response = requests.post(url, data=payload, verify=self.environment.verify_ssl)
-        token_response.raise_for_status()
-        return token_response.json()["access_token"]
-
-    @property
-    def keycloak_token(self) -> str:
-        """Returns a management admin token for Keycloak, if values are set."""
-        keycloak_config = self.keycloak
-        if keycloak_config.admin_id and keycloak_config.admin_secret:
-            url = f"{keycloak_config.url}/realms/master/protocol/openid-connect/token"
-            payload = {
-                "grant_type": "client_credentials",
-                "client_id": keycloak_config.admin_id,
-                "client_secret": keycloak_config.admin_secret
-            }
-            token_response = requests.post(url, data=payload, verify=self.environment.verify_ssl)
-            token_response.raise_for_status()
-            return token_response.json()["access_token"]
-        else:
-            raise ValueError("Admin credentials not configured, unable to request token")
 
     # @property
     # def kubernetes(self):

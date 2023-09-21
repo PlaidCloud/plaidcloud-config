@@ -36,6 +36,7 @@ class EnvironmentConfig(NamedTuple):
     designation: str = "dev"
     tempdir: str = "/tmp"
     verify_ssl: bool = False
+    workflow_image: str = ""
 
 
 class KeycloakConfig(NamedTuple):
@@ -62,6 +63,7 @@ class TenantConfig(NamedTuple):
     workspace_id: str = ""
     cloud_id: int = 0
     apps: list = []
+    services: dict = {}
 
 
 class GlobalConfig(NamedTuple):

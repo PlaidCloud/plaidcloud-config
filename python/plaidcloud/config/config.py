@@ -116,6 +116,11 @@ class LokiConfig(NamedTuple):
     password: str = "lokipassword"
     port: int = 3100
 
+class SharedPostgresConfig(NamedTuple):
+    superset: dict = {}
+    formsflow: dict = {}
+    jupyterhub: dict = {}
+    polyaxon: dict = {}
 
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
@@ -170,6 +175,11 @@ class PlaidConfig:
     def plaidcloud_global(self) -> GlobalConfig:
         global_config = self.cfg.get('plaidcloud-global', {})
         return GlobalConfig(**{k: v for k, v in global_config.items() if k in GlobalConfig._fields})
+    
+    @property
+    def postgres(self) -> SharedPostgresConfig:
+        postgres_config = self.cfg.get('postgres', {})
+        return SharedPostgresConfig(**{k: v for k, v in postgres_config.items() if k in SharedPostgresConfig._fields})
 
     # @property
     # def kubernetes(self):

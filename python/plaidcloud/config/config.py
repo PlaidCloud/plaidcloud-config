@@ -117,10 +117,9 @@ class LokiConfig(NamedTuple):
     port: int = 3100
 
 class SharedPostgresConfig(NamedTuple):
-    superset: dict = {}
-    formsflow: dict = {}
-    jupyterhub: dict = {}
-    polyaxon: dict = {}
+    backups: dict = {}
+    restore: dict = {}
+    credentials: dict = {}
 
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""

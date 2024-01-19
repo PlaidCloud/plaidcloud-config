@@ -9,21 +9,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Ensure python 3.11
+      - name: Ensure python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Acquire list of changed python files
         id: all-python-files
         continue-on-error: true
-        uses: tj-actions/changed-files@v34
+        uses: tj-actions/changed-files@v42
         with:
           files: |
             **/*.py
       - name: Install dependencies
-        run: pip install pyyaml requests; pip install -q pylint==2.15.5;
+        run: pip install pyyaml requests setuptools; pip install -q pylint==${{ secrets.PYLINT_VERSION }};
       - name: Install ReviewDog
         uses: reviewdog/action-setup@v1
       - name: Check Lint Warnings

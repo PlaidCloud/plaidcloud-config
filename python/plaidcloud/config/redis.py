@@ -21,6 +21,7 @@ from urllib import parse as urlparse
 # "sentinel://plaid-redis-master:6379/plaid/0"
 # "sentinel://elaborate_password@plaid-redis-master:6379/plaid/0"
 # "sentinel://elaborate_password@plaid-redis-master,different-host:6380/1?name=goof&socket_timeout=2.5"
+# "sentinel+headless://elaborate_password@headless_host:26379/1?name=goof&socket_timeout=2.5&quorum=2"
 # "redis-cluster://plaid-redis-master:6379"
 # "redis-cluster://elaborate_password:plaid-redis-master:6379"
 
@@ -34,6 +35,8 @@ class ParsedRedisURL(NamedTuple):
     service_name: str
     database: int = 0
     cluster: bool = False
+    headless: bool = False
+    quorum: int = 0
     # options: 
 
 
@@ -52,7 +55,10 @@ class RedisConfig():
             url = urlparse.urlparse(url)
 
         def is_sentinel():
-            return url.scheme == 'redis+sentinel' or url.scheme == 'sentinel'
+            return url.scheme == 'redis+sentinel' or url.scheme == 'sentinel' or url.scheme == 'sentinel+headless'
+
+        def is_headless():
+            return 'headless' in url.scheme
 
         def is_cluster():
             return url.scheme == 'redis-cluster'
@@ -90,6 +96,7 @@ class RedisConfig():
             'client_type': str,
             'socket_timeout': float,
             'socket_connect_timeout': float,
+            'quorum': int,
         }
         options = {}
 
@@ -138,4 +145,6 @@ class RedisConfig():
             master=(client_type == "master"),
             service_name=service_name,
             database=db,
+            headless=is_headless(),
+            quorum=options.get("quorum", 0),
         )

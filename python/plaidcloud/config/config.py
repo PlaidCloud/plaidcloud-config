@@ -63,6 +63,10 @@ class TenantConfig(NamedTuple):
     cloud_id: int = 0
     apps: list = []
     services: dict = {}
+    google: dict = {}
+    aws: dict = {}
+    azure: dict = {}
+    private_cloud: dict = {}
 
 
 class GlobalConfig(NamedTuple):

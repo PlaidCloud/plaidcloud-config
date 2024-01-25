@@ -49,7 +49,7 @@ class KeycloakConfig(NamedTuple):
     realm_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
 
-
+# Tenant Config Object
 class TenantConfig(NamedTuple):
     github_token: str = ""
     github_repo: str = ""
@@ -63,6 +63,10 @@ class TenantConfig(NamedTuple):
     cloud_id: int = 0
     apps: list = []
     services: dict = {}
+    google: dict = {}
+    aws: dict = {}
+    azure: dict = {}
+    private_cloud: dict = {}
 
 
 class GlobalConfig(NamedTuple):

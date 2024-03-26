@@ -27,6 +27,7 @@ class DatabaseConfig(NamedTuple):
     password: str
     system: str
     database_name: str = "plaid_data"
+    query_params: dict = {}
 
 
 class EnvironmentConfig(NamedTuple):
@@ -111,6 +112,7 @@ class OpenSearchConfig(NamedTuple):
 class SupersetConfig(NamedTuple):
     username: str = "admin"
     password: str = ""
+    db_url: str = ""
     use_events_handler: bool = True
 
 
@@ -138,7 +140,7 @@ class PlaidConfig:
     @property
     def database(self) -> DatabaseConfig:
         db_config = self.cfg.get('database', {})
-        return DatabaseConfig(**db_config)
+        return DatabaseConfig(**{k: v for k, v in db_config.items() if k in DatabaseConfig._fields})
 
     @property
     def environment(self) -> EnvironmentConfig:

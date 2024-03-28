@@ -49,6 +49,7 @@ class KeycloakConfig(NamedTuple):
     realm_admin_id: str = "admin-cli"
     realm_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
+    db_url: str = ""
 
 # Tenant Config Object
 class TenantConfig(NamedTuple):

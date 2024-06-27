@@ -69,6 +69,7 @@ class TenantConfig(NamedTuple):
     aws: dict = {}
     azure: dict = {}
     private_cloud: dict = {}
+    use_proxy_download: bool = False
 
 
 class GlobalConfig(NamedTuple):

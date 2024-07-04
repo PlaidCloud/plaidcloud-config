@@ -28,6 +28,7 @@ class DatabaseConfig(NamedTuple):
     system: str
     database_name: str = "plaid_data"
     query_params: dict = {}
+    cloud_url: str = ""
 
 
 class EnvironmentConfig(NamedTuple):

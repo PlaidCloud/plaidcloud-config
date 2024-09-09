@@ -71,6 +71,10 @@ class TenantConfig(NamedTuple):
     azure: dict = {}
     private_cloud: dict = {}
     use_proxy_download: bool = False
+    source_tenant: str = ""
+    source_url: str = ""
+    source_client_id: str = ""
+    source_client_secret: str = ""
 
 
 class GlobalConfig(NamedTuple):

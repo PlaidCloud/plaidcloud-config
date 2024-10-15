@@ -139,7 +139,7 @@ class RedisConfig():
         return ParsedRedisURL(
             hosts=hosts,
             password=password,
-            socket_timeout=options.get("socket_timeout", 1),
+            socket_timeout=options.get("socket_timeout", 30),
             sentinel=is_sentinel(),
             cluster=is_cluster(),
             master=(client_type == "master"),

@@ -39,6 +39,7 @@ class EnvironmentConfig(NamedTuple):
     verify_ssl: bool = False
     workflow_image: str = ""
 
+
 class KeycloakConfig(NamedTuple):
     url: str = "https://plaidcloud.io/auth"
     host: str = "plaidcloud.io"
@@ -50,6 +51,7 @@ class KeycloakConfig(NamedTuple):
     realm_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
     db_url: str = ""
+
 
 # Tenant Config Object
 class TenantConfig(NamedTuple):
@@ -109,11 +111,13 @@ class ServiceConfig(NamedTuple):
     superset: str = "http://plaid-superset.plaid"
     workflow: str = "http://plaid-workflow.plaid"
 
+
 class OpenSearchConfig(NamedTuple):
     host: str = ""
     username: str = "plaidlog"
     password: str = ""
     port: int = 9200
+
 
 class SupersetConfig(NamedTuple):
     username: str = "admin"
@@ -121,16 +125,19 @@ class SupersetConfig(NamedTuple):
     db_url: str = ""
     use_events_handler: bool = True
 
+
 class LokiConfig(NamedTuple):
     host: str = "loki-gateway"
     username: str = "lokiuser"
     password: str = "lokipassword"
     port: int = 3100
 
+
 class SharedPostgresConfig(NamedTuple):
     backups: dict = {}
     restore: dict = {}
     credentials: dict = {}
+
 
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""

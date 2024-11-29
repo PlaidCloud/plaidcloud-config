@@ -39,7 +39,6 @@ class EnvironmentConfig(NamedTuple):
     verify_ssl: bool = False
     workflow_image: str = ""
 
-
 class KeycloakConfig(NamedTuple):
     url: str = "https://plaidcloud.io/auth"
     host: str = "plaidcloud.io"
@@ -75,6 +74,7 @@ class TenantConfig(NamedTuple):
     source_url: str = ""
     source_client_id: str = ""
     source_client_secret: str = ""
+    app_logo_url: str = "plaid/images/logo-header.png"
 
 
 class GlobalConfig(NamedTuple):
@@ -109,7 +109,6 @@ class ServiceConfig(NamedTuple):
     superset: str = "http://plaid-superset.plaid"
     workflow: str = "http://plaid-workflow.plaid"
 
-
 class OpenSearchConfig(NamedTuple):
     host: str = ""
     username: str = "plaidlog"
@@ -121,7 +120,6 @@ class SupersetConfig(NamedTuple):
     password: str = ""
     db_url: str = ""
     use_events_handler: bool = True
-
 
 class LokiConfig(NamedTuple):
     host: str = "loki-gateway"

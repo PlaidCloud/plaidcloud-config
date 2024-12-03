@@ -76,8 +76,9 @@ class TenantConfig(NamedTuple):
     source_url: str = ""
     source_client_id: str = ""
     source_client_secret: str = ""
-    app_logo_url: str = "plaid/images/logo-header.png"
-
+    app_logo_url: str = "resource/plaid/images/logo-header.png"
+    splash_screen_logo_url: str = "resource/plaid/images/logo-login.png"
+    superset_logo_url: str = "/static/assets/images/plaidcloud.png"
 
 class GlobalConfig(NamedTuple):
     client_id: str = ""

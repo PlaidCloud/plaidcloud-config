@@ -2,7 +2,7 @@
 # coding=utf-8
 
 __author__ = "Garrett Bates"
-__copyright__ = "© Copyright 2020-2025, Tartan Solutions, Inc"
+__copyright__ = "© Copyright 2020-2025, PlaidCloud, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
 __version__ = "0.1.46"

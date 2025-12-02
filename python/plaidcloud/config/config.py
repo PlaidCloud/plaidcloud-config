@@ -140,6 +140,16 @@ class SharedPostgresConfig(NamedTuple):
     credentials: dict = {}
 
 
+class OAuthServiceConfig(NamedTuple):
+    client_id: str = ""
+    client_secret: str = ""
+
+
+class OAuthConfig(NamedTuple):
+    quickbooks: OAuthServiceConfig = OAuthServiceConfig()
+    paycor: OAuthServiceConfig = OAuthServiceConfig()
+
+
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
@@ -188,6 +198,14 @@ class PlaidConfig:
     def loki(self) -> LokiConfig:
         loki_config = self.cfg.get('loki', {})
         return LokiConfig(**{k: v for k, v in loki_config.items() if k in LokiConfig._fields})
+    
+    @property
+    def oauth(self) -> OAuthConfig:
+        oauth_config = self.cfg.get('oauth', {})
+        return OAuthConfig(**{
+            k: OAuthServiceConfig(
+                **{conf_k: conf_v for conf_k, conf_v in v.items() if conf_k in OAuthServiceConfig._fields}
+            ) for k, v in oauth_config.items() if k in OAuthConfig._fields})
 
     @property
     def plaidcloud_global(self) -> GlobalConfig:

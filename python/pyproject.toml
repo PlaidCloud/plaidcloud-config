@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plaidcloud-config"
-version = "0.1.49"
+version = "0.1.50"
 authors = [
     {name = "Garrett Bates", email = "garrett.bates@tartansolutions.com"},
     {name = "Michael Rea", email = "mike@plaidcloud.com"},

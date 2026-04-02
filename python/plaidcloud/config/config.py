@@ -249,7 +249,7 @@ class PlaidConfig:
 
     @property
     def ai_chat_history(self) -> AIChatHistoryConfig:
-        history_config = self.cfg.get('ai-chat-history', {})
+        history_config = self.cfg.get('ai_chat_history', {})
         return AIChatHistoryConfig(**{k: v for k, v in history_config.items() if k in AIChatHistoryConfig._fields})
 
 

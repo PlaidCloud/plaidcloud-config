@@ -126,6 +126,11 @@ class SupersetConfig(NamedTuple):
     db_url: str = ""
     use_events_handler: bool = True
 
+class AIChatHistoryConfig(NamedTuple):
+    langchain_db_url: str = ""
+    conversation_db_url: str = ""
+    username: str = ""
+    password: str = ""
 
 class LokiConfig(NamedTuple):
     host: str = "loki-gateway"
@@ -211,7 +216,7 @@ class PlaidConfig:
     def plaidcloud_global(self) -> GlobalConfig:
         global_config = self.cfg.get('plaidcloud-global', {})
         return GlobalConfig(**{k: v for k, v in global_config.items() if k in GlobalConfig._fields})
-    
+
     @property
     def postgres(self) -> SharedPostgresConfig:
         postgres_config = self.cfg.get('postgres', {})

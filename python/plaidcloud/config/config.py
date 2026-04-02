@@ -203,7 +203,7 @@ class PlaidConfig:
     def loki(self) -> LokiConfig:
         loki_config = self.cfg.get('loki', {})
         return LokiConfig(**{k: v for k, v in loki_config.items() if k in LokiConfig._fields})
-    
+
     @property
     def oauth(self) -> OAuthConfig:
         oauth_config = self.cfg.get('oauth', {})
@@ -246,6 +246,12 @@ class PlaidConfig:
     def superset(self) -> SupersetConfig:
         superset_config = self.cfg.get('superset', {})
         return SupersetConfig(**{k: v for k, v in superset_config.items() if k in SupersetConfig._fields})
+
+    @property
+    def ai_chat_history(self) -> AIChatHistoryConfig:
+        history_config = self.cfg.get('ai-chat-history', {})
+        return AIChatHistoryConfig(**{k: v for k, v in history_config.items() if k in AIChatHistoryConfig._fields})
+
 
     def __str__(self):
         return repr(self)

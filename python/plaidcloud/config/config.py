@@ -155,6 +155,15 @@ class OAuthConfig(NamedTuple):
     paycor: OAuthServiceConfig = OAuthServiceConfig()
 
 
+class VaultConfig(NamedTuple):
+    enabled: bool = False
+    url: str = "http://127.0.0.1:8200"
+    token: str = ""
+    mount_point: str = "secret"
+    tenant_path_prefix: str = "tenants"
+    global_path: str = "global"
+
+
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
@@ -252,6 +261,10 @@ class PlaidConfig:
         history_config = self.cfg.get('ai_chat_history', {})
         return AIChatHistoryConfig(**{k: v for k, v in history_config.items() if k in AIChatHistoryConfig._fields})
 
+    @property
+    def vault(self) -> VaultConfig:
+        vault_config = self.cfg.get('vault', {})
+        return VaultConfig(**{k: v for k, v in vault_config.items() if k in VaultConfig._fields})
 
     def __str__(self):
         return repr(self)

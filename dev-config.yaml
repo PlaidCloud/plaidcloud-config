@@ -4,6 +4,11 @@ database:
   superuser: postgres
   password: postgres
   system: postgresql
+  # Iceberg / LakeKeeper settings (used when system is starrocks)
+  # iceberg_catalog: iceberg_catalog
+  # lakekeeper_url: http://lakekeeper:8181
+  # lakekeeper_warehouse: my-warehouse
+  # lakekeeper_token: ""
 environment:
   hostname: {namespace}.plaidcloud.io
   designation: dev

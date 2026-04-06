@@ -29,6 +29,10 @@ class DatabaseConfig(NamedTuple):
     database_name: str = "plaid_data"
     query_params: dict = {}
     cloud_url: str = ""
+    iceberg_catalog: str = "iceberg_catalog"
+    lakekeeper_url: str = "http://lakekeeper:8181"
+    lakekeeper_warehouse: str = ""
+    lakekeeper_token: str = ""
 
 
 class EnvironmentConfig(NamedTuple):

@@ -159,6 +159,11 @@ class OAuthConfig(NamedTuple):
     paycor: OAuthServiceConfig = OAuthServiceConfig()
 
 
+class StripeConfig(NamedTuple):
+    api_key: str = ""
+    webhook_secret: str = ""
+
+
 class VaultConfig(NamedTuple):
     enabled: bool = False
     url: str = "http://127.0.0.1:8200"
@@ -264,6 +269,11 @@ class PlaidConfig:
     def ai_chat_history(self) -> AIChatHistoryConfig:
         history_config = self.cfg.get('ai_chat_history', {})
         return AIChatHistoryConfig(**{k: v for k, v in history_config.items() if k in AIChatHistoryConfig._fields})
+
+    @property
+    def stripe(self) -> StripeConfig:
+        stripe_config = self.cfg.get('stripe', {})
+        return StripeConfig(**{k: v for k, v in stripe_config.items() if k in StripeConfig._fields})
 
     @property
     def vault(self) -> VaultConfig:

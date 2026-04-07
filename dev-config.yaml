@@ -68,6 +68,9 @@ services:
   rpc: http://plaid-rpc/json-rpc/
   superset: http://plaid-superset
   workflow: http://plaid-workflow
+stripe:
+  api_key: ""
+  webhook_secret: ""
 superset:
   use_event_handler: false
   username: admin

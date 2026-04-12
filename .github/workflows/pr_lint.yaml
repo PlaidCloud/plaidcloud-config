@@ -39,7 +39,7 @@ jobs:
         run: |
           pylint -s n -f text -E python 2>&1 | reviewdog -efm="%f:%l:%c: %m" -name="PyLint Errors" -reporter=github-check -filter-mode=nofilter -fail-on-error
   test:
-    name: Run Tests w ReviewDog
+    name: Run Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -55,21 +55,20 @@ jobs:
       - name: Install dependencies
         working-directory: python
         run: pip install -e ".[test]"
-      - name: Install ReviewDog
-        uses: reviewdog/action-setup@v1
       - name: Run pytest with coverage
         working-directory: python
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
-          set -o pipefail
-          pytest tests/ --tb=line --no-header -q \
+          pytest tests/ -v \
             --cov=plaidcloud.config \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --junitxml=test-results.xml \
-            2>&1 | reviewdog -efm="%f:%l: %m" -name="Pytest" -reporter=github-check -filter-mode=nofilter -fail-on-error
+            --junitxml=test-results.xml
+      - name: Test Results
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: python/test-results.xml
+          check_name: Test Results
       - name: Pytest Coverage Comment
         if: always()
         uses: MishaKav/pytest-coverage-comment@v2

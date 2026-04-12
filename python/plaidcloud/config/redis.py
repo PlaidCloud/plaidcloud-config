@@ -29,7 +29,7 @@ from urllib import parse as urlparse
 class ParsedRedisURL(NamedTuple):
     hosts: List[Tuple[str, int]]
     password: str
-    socket_timeout: int 
+    socket_timeout: float
     master: bool
     sentinel: bool
     service_name: str
@@ -127,14 +127,16 @@ class RedisConfig():
 
         client_type = options.pop('client_type', 'master')
         if client_type not in ('master', 'slave'):
-            raise ValueError('Client type must be either master or slave, got {!r}')
+            raise ValueError('Client type must be either master or slave, got {!r}'.format(client_type))
 
-        db = 0
-        if 'db' not in options:
-            if len(path_parts) >= 2:
-                db = int(path_parts[1])
-            elif len(path_parts) == 1:
-                db = int(path_parts[0])
+        if 'db' in options:
+            db = options.pop('db')
+        elif len(path_parts) >= 2:
+            db = int(path_parts[1])
+        elif len(path_parts) == 1:
+            db = int(path_parts[0])
+        else:
+            db = 0
 
         return ParsedRedisURL(
             hosts=hosts,

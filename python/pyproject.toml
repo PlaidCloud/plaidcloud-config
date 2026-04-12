@@ -34,6 +34,9 @@ classifiers = [
 dependencies = ["pyyaml"]
 dynamic = ["readme"]
 
+[project.optional-dependencies]
+test = ["pytest>=7.0", "pytest-cov>=4.0"]
+
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
@@ -43,6 +46,9 @@ Documentation = "https://docs.plaidcloud.com"
 Repository = "https://github.com/PlaidCloud/plaidcloud-config.git"
 Issues = "https://github.com/PlaidCloud/plaidcloud-config/issues"
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.black]
 line-length = 125

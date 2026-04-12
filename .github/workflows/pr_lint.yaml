@@ -23,7 +23,7 @@ jobs:
           files: |
             **/*.py
       - name: Install dependencies
-        run: pip install pyyaml requests setuptools; pip install -q pylint==${{ secrets.PYLINT_VERSION }};
+        run: pip install pyyaml requests setuptools pytest; pip install -q pylint==${{ secrets.PYLINT_VERSION }};
       - name: Install ReviewDog
         uses: reviewdog/action-setup@v1
       - name: Check Lint Warnings
@@ -71,7 +71,7 @@ jobs:
           check_name: Test Results
       - name: Pytest Coverage Comment
         if: always()
-        uses: MishaKav/pytest-coverage-comment@v2
+        uses: MishaKav/pytest-coverage-comment@v1.7.1
         with:
           pytest-xml-coverage-path: python/coverage.xml
           junitxml-path: python/test-results.xml

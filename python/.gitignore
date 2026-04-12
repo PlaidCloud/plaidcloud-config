@@ -3,3 +3,7 @@
 build/
 dist/
 __pycache__
+.coverage
+coverage.xml
+test-results.xml
+.pytest_cache/

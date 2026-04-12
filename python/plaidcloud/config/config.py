@@ -179,7 +179,7 @@ class PlaidConfig:
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, 'r') as stream:
                 # Leave exception unhandled. We don't want to start without a valid conf.
-                self.cfg = yaml.safe_load(stream)
+                self.cfg = yaml.safe_load(stream) or {}
         else:
             self.cfg = {}
 

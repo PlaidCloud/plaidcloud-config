@@ -42,6 +42,7 @@ class EnvironmentConfig(NamedTuple):
     tempdir: str = "/tmp"
     verify_ssl: bool = False
     workflow_image: str = ""
+    panel_builder_image: str = ""
 
 
 class KeycloakConfig(NamedTuple):

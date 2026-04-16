@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "plaidcloud-config"
-version = "0.1.50"
 authors = [
     {name = "Garrett Bates", email = "garrett.bates@tartansolutions.com"},
     {name = "Michael Rea", email = "mike@plaidcloud.com"},
@@ -32,13 +31,17 @@ classifiers = [
     "Programming Language :: Python :: 3.14"
 ]
 dependencies = ["pyyaml"]
-dynamic = ["readme"]
+dynamic = ["version", "readme"]
 
 [project.optional-dependencies]
 test = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
+
+[tool.setuptools_scm]
+root = ".."
+relative_to = "pyproject.toml"
 
 [project.urls]
 Homepage = "https://plaidcloud.com"

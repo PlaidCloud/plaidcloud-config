@@ -105,8 +105,8 @@ SAMPLE_CONFIG = {
         "conversation_db_url": "postgresql://conv:5432/conv",
         "username": "chatuser",
         "password": "chatpass",
-        "grok_api_key": "xai-CiIjm33DGpcHO9rKoCfmWdZKukzRz0MnU6z2KRVgFb0tWFqNZirEuFLuNa51ZDT1OVuJGxmMZPJJiGDh",
-        "openai_api_key": "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"
+        "grok_api_key": "dummy",
+        "openai_api_key": "dummy"
     },
     "loki": {
         "host": "loki.example.com",

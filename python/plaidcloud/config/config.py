@@ -2,12 +2,11 @@
 # coding=utf-8
 
 __author__ = "Garrett Bates"
-__copyright__ = "© Copyright 2020-2021, PlaidCloud, Inc"
+__copyright__ = "© Copyright 2020-2026, PlaidCloud, Inc"
 __credits__ = ["Garrett Bates"]
 __license__ = "Apache 2.0"
 __maintainer__ = "Garrett Bates"
-__email__ = "garrett.bates@tartansolutions.com"
-__status__ = "Development"
+__email__ = "garrett@plaidcloud.com"
 
 """Loads the configuration file used by plaid apps in kubernetes."""
 import os
@@ -17,6 +16,28 @@ from plaidcloud.config.redis import RedisConfig
 from plaidcloud.config.rabbitmq import RMQConfig
 
 CONFIG_PATH = os.environ.get('PLAID_CONFIG_PATH', '/etc/plaidcloud/config.yaml')
+ENV_OVERRIDE_PREFIX = 'PLAID_CFG'
+ENV_OVERRIDE_SEP = '00'
+
+
+def _apply_env_overrides(cfg: dict) -> None:
+    marker = ENV_OVERRIDE_PREFIX + ENV_OVERRIDE_SEP
+    for name, raw in os.environ.items():
+        if not name.startswith(marker):
+            continue
+        path = [p for p in name[len(marker):].split(ENV_OVERRIDE_SEP) if p]
+        if not path:
+            continue
+        try:
+            value = yaml.safe_load(raw)
+        except yaml.YAMLError:
+            value = raw
+        node = cfg
+        for key in path[:-1]:
+            if not isinstance(node.get(key), dict):
+                node[key] = {}
+            node = node[key]
+        node[path[-1]] = value
 
 
 class DatabaseConfig(NamedTuple):
@@ -182,6 +203,7 @@ class PlaidConfig:
                 self.cfg = yaml.safe_load(stream) or {}
         else:
             self.cfg = {}
+        _apply_env_overrides(self.cfg)
 
     @property
     def database(self) -> DatabaseConfig:

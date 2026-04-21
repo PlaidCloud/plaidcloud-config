@@ -115,6 +115,8 @@ SAMPLE_CONFIG = {
         "conversation_db_url": "postgresql://conv:5432/conv",
         "username": "chatuser",
         "password": "chatpass",
+        "grok_api_key": "grok-api-secret",
+        "openai_api_key": "openapi-secret"
     },
     "loki": {
         "host": "loki.example.com",

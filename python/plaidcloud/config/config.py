@@ -156,6 +156,10 @@ class AIChatHistoryConfig(NamedTuple):
     conversation_db_url: str = ""
     username: str = ""
     password: str = ""
+    ollama_url: str = ""
+    grok_api_key: str = ""
+    openai_api_key: str = ""
+
 
 class LokiConfig(NamedTuple):
     host: str = "loki-gateway"

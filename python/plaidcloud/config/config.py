@@ -189,6 +189,12 @@ class StripeConfig(NamedTuple):
     webhook_secret: str = ""
 
 
+class EmailConfig(NamedTuple):
+    postmark_server_token: str = ""
+    postmark_server_id: str = ""
+    sender: str = ""
+
+
 class VaultConfig(NamedTuple):
     enabled: bool = False
     url: str = "http://127.0.0.1:8200"
@@ -300,6 +306,11 @@ class PlaidConfig:
     def stripe(self) -> StripeConfig:
         stripe_config = self.cfg.get('stripe', {})
         return StripeConfig(**{k: v for k, v in stripe_config.items() if k in StripeConfig._fields})
+
+    @property
+    def email(self) -> EmailConfig:
+        email_config = self.cfg.get('email', {})
+        return EmailConfig(**{k: v for k, v in email_config.items() if k in EmailConfig._fields})
 
     @property
     def vault(self) -> VaultConfig:

@@ -33,6 +33,7 @@ SharedPostgresConfig = config_mod.SharedPostgresConfig
 OAuthConfig = config_mod.OAuthConfig
 OAuthServiceConfig = config_mod.OAuthServiceConfig
 StripeConfig = config_mod.StripeConfig
+EmailConfig = config_mod.EmailConfig
 VaultConfig = config_mod.VaultConfig
 PlaidConfig = config_mod.PlaidConfig
 
@@ -425,6 +426,26 @@ class TestStripeConfig:
         stripe = missing_config.stripe
         assert stripe.api_key == ""
         assert stripe.webhook_secret == ""
+
+
+# ---------------------------------------------------------------------------
+# EmailConfig
+# ---------------------------------------------------------------------------
+
+class TestEmailConfig:
+
+    def test_full_config(self, plaid_config):
+        email = plaid_config.email
+        assert isinstance(email, EmailConfig)
+        assert email.postmark_server_token == "pmk-server-token"
+        assert email.postmark_server_id == "pmk-server-id"
+        assert email.sender == "no-reply@example.com"
+
+    def test_defaults(self, missing_config):
+        email = missing_config.email
+        assert email.postmark_server_token == ""
+        assert email.postmark_server_id == ""
+        assert email.sender == ""
 
 
 # ---------------------------------------------------------------------------

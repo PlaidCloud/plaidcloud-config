@@ -71,6 +71,10 @@ services:
 stripe:
   api_key: ""
   webhook_secret: ""
+email:
+  postmark_server_token: ""
+  postmark_server_id: ""
+  sender: ""
 superset:
   use_event_handler: false
   username: admin

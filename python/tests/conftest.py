@@ -174,6 +174,11 @@ SAMPLE_CONFIG = {
         "api_key": "sk_test_123",
         "webhook_secret": "whsec_test_456",
     },
+    "email": {
+        "postmark_server_token": "pmk-server-token",
+        "postmark_server_id": "pmk-server-id",
+        "sender": "no-reply@example.com",
+    },
     "vault": {
         "enabled": True,
         "url": "http://vault:8200",

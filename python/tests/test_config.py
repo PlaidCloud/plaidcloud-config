@@ -238,12 +238,19 @@ class TestTenantConfig:
         assert t.cloud_id == 42
         assert t.apps == ["app1", "app2"]
         assert t.use_proxy_download is True
+        assert t.workflow_run_history == {
+            "writer_user": "wfh_writer",
+            "writer_password": "wpw",
+            "reader_user": "wfh_reader",
+            "reader_password": "rpw",
+        }
 
     def test_defaults(self, missing_config):
         t = missing_config.tenant
         assert t.github_token == ""
         assert t.apps == []
         assert t.cloud_id == 0
+        assert t.workflow_run_history == {}
 
 
 # ---------------------------------------------------------------------------

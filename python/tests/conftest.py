@@ -84,6 +84,12 @@ SAMPLE_CONFIG = {
         "app_logo_url": "logo.png",
         "splash_screen_logo_url": "splash.png",
         "superset_logo_url": "superset.png",
+        "workflow_run_history": {
+            "writer_user": "wfh_writer",
+            "writer_password": "wpw",
+            "reader_user": "wfh_reader",
+            "reader_password": "rpw",
+        },
     },
     "services": {
         "auth": "http://auth:8080",

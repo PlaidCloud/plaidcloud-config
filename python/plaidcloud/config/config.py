@@ -104,6 +104,8 @@ class TenantConfig(NamedTuple):
     app_logo_url: str = "resource/plaid/images/logo-header.png"
     splash_screen_logo_url: str = "resource/plaid/images/logo-login.png"
     superset_logo_url: str = "/static/assets/images/plaidcloud.png"
+    workflow_run_history: dict = {}
+
 
 class GlobalConfig(NamedTuple):
     client_id: str = ""

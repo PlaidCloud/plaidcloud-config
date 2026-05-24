@@ -122,7 +122,9 @@ SAMPLE_CONFIG = {
         "username": "chatuser",
         "password": "chatpass",
         "grok_api_key": "grok-api-secret",
-        "openai_api_key": "openapi-secret"
+        "openai_api_key": "openapi-secret",
+        "anthropic_api_key": "anthropic-secret",
+        "gemini_api_key": "gemini-secret"
     },
     "loki": {
         "host": "loki.example.com",

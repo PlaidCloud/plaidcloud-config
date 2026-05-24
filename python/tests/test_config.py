@@ -338,10 +338,14 @@ class TestAIChatHistoryConfig:
         assert isinstance(ai, AIChatHistoryConfig)
         assert ai.langchain_db_url == "postgresql://langchain:5432/langchain"
         assert ai.username == "chatuser"
+        assert ai.anthropic_api_key == "anthropic-secret"
+        assert ai.gemini_api_key == "gemini-secret"
 
     def test_defaults(self, missing_config):
         ai = missing_config.ai_chat_history
         assert ai.langchain_db_url == ""
+        assert ai.anthropic_api_key == ""
+        assert ai.gemini_api_key == ""
 
 
 # ---------------------------------------------------------------------------

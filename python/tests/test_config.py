@@ -35,6 +35,7 @@ OAuthServiceConfig = config_mod.OAuthServiceConfig
 StripeConfig = config_mod.StripeConfig
 EmailConfig = config_mod.EmailConfig
 VaultConfig = config_mod.VaultConfig
+SecurityConfig = config_mod.SecurityConfig
 PlaidConfig = config_mod.PlaidConfig
 
 
@@ -337,10 +338,14 @@ class TestAIChatHistoryConfig:
         assert isinstance(ai, AIChatHistoryConfig)
         assert ai.langchain_db_url == "postgresql://langchain:5432/langchain"
         assert ai.username == "chatuser"
+        assert ai.anthropic_api_key == "anthropic-secret"
+        assert ai.gemini_api_key == "gemini-secret"
 
     def test_defaults(self, missing_config):
         ai = missing_config.ai_chat_history
         assert ai.langchain_db_url == ""
+        assert ai.anthropic_api_key == ""
+        assert ai.gemini_api_key == ""
 
 
 # ---------------------------------------------------------------------------
@@ -474,6 +479,24 @@ class TestVaultConfig:
         assert vault.enabled is False
         assert vault.url == "http://127.0.0.1:8200"
         assert vault.token == ""
+
+
+# ---------------------------------------------------------------------------
+# SecurityConfig
+# ---------------------------------------------------------------------------
+
+class TestSecurityConfig:
+
+    def test_full_config(self, plaid_config):
+        sec = plaid_config.security
+        assert isinstance(sec, SecurityConfig)
+        assert sec.cookie_secret == "cookie-sign-secret"
+        assert sec.step_token_secret == "step-sign-secret"
+
+    def test_defaults(self, missing_config):
+        sec = missing_config.security
+        assert sec.cookie_secret == ""
+        assert sec.step_token_secret == ""
 
 
 # ---------------------------------------------------------------------------

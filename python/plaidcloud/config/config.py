@@ -161,6 +161,8 @@ class AIChatHistoryConfig(NamedTuple):
     ollama_url: str = ""
     grok_api_key: str = ""
     openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
 
 
 class LokiConfig(NamedTuple):
@@ -204,6 +206,11 @@ class VaultConfig(NamedTuple):
     mount_point: str = "secret"
     tenant_path_prefix: str = "tenants"
     global_path: str = "global"
+
+
+class SecurityConfig(NamedTuple):
+    cookie_secret: str = ""
+    step_token_secret: str = ""
 
 
 class PlaidConfig:
@@ -318,6 +325,11 @@ class PlaidConfig:
     def vault(self) -> VaultConfig:
         vault_config = self.cfg.get('vault', {})
         return VaultConfig(**{k: v for k, v in vault_config.items() if k in VaultConfig._fields})
+
+    @property
+    def security(self) -> SecurityConfig:
+        security_config = self.cfg.get('security', {})
+        return SecurityConfig(**{k: v for k, v in security_config.items() if k in SecurityConfig._fields})
 
     def __str__(self):
         return repr(self)

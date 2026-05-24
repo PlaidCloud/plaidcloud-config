@@ -206,6 +206,11 @@ class VaultConfig(NamedTuple):
     global_path: str = "global"
 
 
+class SecurityConfig(NamedTuple):
+    cookie_secret: str = ""
+    step_token_secret: str = ""
+
+
 class PlaidConfig:
     """Parses a standard configuration file for consumption by python code."""
     def __init__(self):
@@ -318,6 +323,11 @@ class PlaidConfig:
     def vault(self) -> VaultConfig:
         vault_config = self.cfg.get('vault', {})
         return VaultConfig(**{k: v for k, v in vault_config.items() if k in VaultConfig._fields})
+
+    @property
+    def security(self) -> SecurityConfig:
+        security_config = self.cfg.get('security', {})
+        return SecurityConfig(**{k: v for k, v in security_config.items() if k in SecurityConfig._fields})
 
     def __str__(self):
         return repr(self)

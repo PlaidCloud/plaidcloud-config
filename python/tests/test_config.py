@@ -35,6 +35,7 @@ OAuthServiceConfig = config_mod.OAuthServiceConfig
 StripeConfig = config_mod.StripeConfig
 EmailConfig = config_mod.EmailConfig
 VaultConfig = config_mod.VaultConfig
+SecurityConfig = config_mod.SecurityConfig
 PlaidConfig = config_mod.PlaidConfig
 
 
@@ -474,6 +475,24 @@ class TestVaultConfig:
         assert vault.enabled is False
         assert vault.url == "http://127.0.0.1:8200"
         assert vault.token == ""
+
+
+# ---------------------------------------------------------------------------
+# SecurityConfig
+# ---------------------------------------------------------------------------
+
+class TestSecurityConfig:
+
+    def test_full_config(self, plaid_config):
+        sec = plaid_config.security
+        assert isinstance(sec, SecurityConfig)
+        assert sec.cookie_secret == "cookie-sign-secret"
+        assert sec.step_token_secret == "step-sign-secret"
+
+    def test_defaults(self, missing_config):
+        sec = missing_config.security
+        assert sec.cookie_secret == ""
+        assert sec.step_token_secret == ""
 
 
 # ---------------------------------------------------------------------------

@@ -195,6 +195,10 @@ SAMPLE_CONFIG = {
         "tenant_path_prefix": "tenants",
         "global_path": "global",
     },
+    "security": {
+        "cookie_secret": "cookie-sign-secret",
+        "step_token_secret": "step-sign-secret",
+    },
 }
 
 

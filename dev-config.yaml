@@ -79,3 +79,10 @@ superset:
   use_event_handler: false
   username: admin
   password: admin
+security:
+  # Local dev only. In-cluster, cookie_secret / step_token_secret are rendered
+  # from Vault via ESO (external-secret-tenant-config.yaml). A dev config that
+  # sets `tenant.id` otherwise fail-closes in get_cookie_secret(); these
+  # placeholders let the dev rpc boot. NOT real secrets — local sessions only.
+  cookie_secret: dev-only-cookie-secret-not-for-production
+  step_token_secret: dev-only-step-token-secret-not-for-production

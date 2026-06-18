@@ -245,6 +245,11 @@ class TestTenantConfig:
             "reader_user": "wfh_reader",
             "reader_password": "rpw",
         }
+        assert t.entitlements == {
+            "flag.ml_library": True,
+            "limit.builders": 25,
+            "set.auth_methods": ["google", "ms", "saml"],
+        }
 
     def test_defaults(self, missing_config):
         t = missing_config.tenant
@@ -252,6 +257,7 @@ class TestTenantConfig:
         assert t.apps == []
         assert t.cloud_id == 0
         assert t.workflow_run_history == {}
+        assert t.entitlements == {}
 
 
 # ---------------------------------------------------------------------------

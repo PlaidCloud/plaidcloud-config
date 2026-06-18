@@ -90,6 +90,11 @@ SAMPLE_CONFIG = {
             "reader_user": "wfh_reader",
             "reader_password": "rpw",
         },
+        "entitlements": {
+            "flag.ml_library": True,
+            "limit.builders": 25,
+            "set.auth_methods": ["google", "ms", "saml"],
+        },
     },
     "services": {
         "auth": "http://auth:8080",

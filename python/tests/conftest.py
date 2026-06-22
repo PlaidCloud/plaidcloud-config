@@ -81,6 +81,8 @@ SAMPLE_CONFIG = {
         "source_url": "https://source.example.com",
         "source_client_id": "src-id",
         "source_client_secret": "src-secret",
+        "stripe_api_key": "sk_tenant_test",
+        "stripe_tax_key": "txi_tenant_test",
         "app_logo_url": "logo.png",
         "splash_screen_logo_url": "splash.png",
         "superset_logo_url": "superset.png",

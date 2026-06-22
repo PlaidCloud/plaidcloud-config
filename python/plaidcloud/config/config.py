@@ -106,6 +106,8 @@ class TenantConfig(NamedTuple):
     superset_logo_url: str = "/static/assets/images/plaidcloud.png"
     workflow_run_history: dict = {}
     entitlements: dict = {}
+    stripe_api_key: str = ""
+    stripe_tax_key: str = ""
 
 
 class GlobalConfig(NamedTuple):

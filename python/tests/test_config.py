@@ -239,6 +239,8 @@ class TestTenantConfig:
         assert t.cloud_id == 42
         assert t.apps == ["app1", "app2"]
         assert t.use_proxy_download is True
+        assert t.stripe_api_key == "sk_tenant_test"
+        assert t.stripe_tax_key == "txi_tenant_test"
         assert t.workflow_run_history == {
             "writer_user": "wfh_writer",
             "writer_password": "wpw",
@@ -256,6 +258,8 @@ class TestTenantConfig:
         assert t.github_token == ""
         assert t.apps == []
         assert t.cloud_id == 0
+        assert t.stripe_api_key == ""
+        assert t.stripe_tax_key == ""
         assert t.workflow_run_history == {}
         assert t.entitlements == {}
 

@@ -108,6 +108,9 @@ class TenantConfig(NamedTuple):
     entitlements: dict = {}
     stripe_api_key: str = ""
     stripe_tax_key: str = ""
+    stripe_webhook_secret: str = ""
+    ramp_client_id: str = ""
+    ramp_client_secret: str = ""
 
 
 class GlobalConfig(NamedTuple):

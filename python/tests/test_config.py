@@ -218,11 +218,13 @@ class TestKeycloakConfig:
         assert kc.client_name == "test-client"
         assert kc.admin_secret == "adminsecret"
         assert kc.db_url == "postgresql://keycloak:5432/keycloak"
+        assert kc.internal_url == "http://keycloak.internal.svc:8080"
 
     def test_defaults(self, missing_config):
         kc = missing_config.keycloak
         assert kc.realm == "PlaidCloud"
         assert kc.client_name == "plaidcloud-login"
+        assert kc.internal_url == ""
 
 
 # ---------------------------------------------------------------------------

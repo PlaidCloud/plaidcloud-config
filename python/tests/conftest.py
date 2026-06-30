@@ -58,6 +58,7 @@ SAMPLE_CONFIG = {
         "realm_secret": "realmsecret",
         "keycloak_issuer": "https://auth.example.com/realms/TestRealm",
         "db_url": "postgresql://keycloak:5432/keycloak",
+        "internal_url": "http://keycloak.internal.svc:8080",
     },
     "tenant": {
         "github_token": "ghp_test",

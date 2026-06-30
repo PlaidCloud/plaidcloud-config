@@ -76,6 +76,10 @@ class KeycloakConfig(NamedTuple):
     realm_secret: str = ""
     keycloak_issuer: str = "https://plaidcloud.io/auth/realms/PlaidCloud"
     db_url: str = ""
+    # In-cluster Keycloak base for server-to-server admin calls; empty ⇒ use `url`.
+    # Keeps admin traffic in-cluster (cheaper egress, lower latency). Safe because
+    # Keycloak runs hostname-strict=false, deriving the token issuer per request host.
+    internal_url: str = ""
 
 
 # Tenant Config Object

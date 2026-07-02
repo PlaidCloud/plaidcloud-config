@@ -115,6 +115,7 @@ class TenantConfig(NamedTuple):
     stripe_webhook_secret: str = ""
     ramp_client_id: str = ""
     ramp_client_secret: str = ""
+    client_asset_version: str = ""
 
 
 class GlobalConfig(NamedTuple):

@@ -91,6 +91,7 @@ SAMPLE_CONFIG = {
         "splash_screen_logo_url": "splash.png",
         "superset_logo_url": "superset.png",
         "client_asset_version": "v-test-123",
+        "client_bucket_serving": True,
         "workflow_run_history": {
             "writer_user": "wfh_writer",
             "writer_password": "wpw",

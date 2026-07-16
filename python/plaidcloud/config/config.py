@@ -116,6 +116,7 @@ class TenantConfig(NamedTuple):
     ramp_client_id: str = ""
     ramp_client_secret: str = ""
     client_asset_version: str = ""
+    client_bucket_serving: bool = False
 
 
 class GlobalConfig(NamedTuple):

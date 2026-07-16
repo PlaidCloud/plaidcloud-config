@@ -247,6 +247,7 @@ class TestTenantConfig:
         assert t.ramp_client_id == "ramp_id_test"
         assert t.ramp_client_secret == "ramp_secret_test"
         assert t.client_asset_version == "v-test-123"
+        assert t.client_bucket_serving is True
         assert t.workflow_run_history == {
             "writer_user": "wfh_writer",
             "writer_password": "wpw",
@@ -270,6 +271,7 @@ class TestTenantConfig:
         assert t.ramp_client_id == ""
         assert t.ramp_client_secret == ""
         assert t.client_asset_version == ""
+        assert t.client_bucket_serving is False
         assert t.workflow_run_history == {}
         assert t.entitlements == {}
 

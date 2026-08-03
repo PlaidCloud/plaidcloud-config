@@ -255,6 +255,11 @@ class PlaidConfig:
         feature_config = self.cfg.get('features', {})
         return FeatureConfig(**{k: v for k, v in feature_config.items() if k in FeatureConfig._fields})
 
+    def feature(self, name: str, default=False):
+        """Read a feature flag by name, including flags not declared on FeatureConfig
+        (e.g. UI-set flags merged in via PLAID_CFG00features00<name> env overrides)."""
+        return self.cfg.get('features', {}).get(name, default)
+
     @property
     def keycloak(self) -> KeycloakConfig:
         keycloak_config = self.cfg.get('keycloak', {})

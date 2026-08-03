@@ -203,6 +203,26 @@ class TestFeatureConfig:
         assert feat.enable_cors is False
         assert feat.flashback is True
 
+    def test_feature_reads_undeclared_flag(self, plaid_config):
+        plaid_config.cfg["features"]["experimental_x"] = True
+        assert plaid_config.feature("experimental_x") is True
+        assert not hasattr(plaid_config.features, "experimental_x")
+
+    def test_feature_reads_declared_field(self, plaid_config):
+        assert plaid_config.feature("flashback") is False
+        assert plaid_config.feature("flashback") == plaid_config.features.flashback
+
+    def test_feature_default_when_absent(self, missing_config):
+        assert missing_config.feature("nope") is False
+        assert missing_config.feature("nope", "d") == "d"
+
+    def test_feature_env_override_end_to_end(self, config_file, monkeypatch):
+        mod = sys.modules["plaidcloud.config.config"]
+        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setenv("PLAID_CFG00features00new_flag", "true")
+        cfg = PlaidConfig()
+        assert cfg.feature("new_flag") is True
+
 
 # ---------------------------------------------------------------------------
 # KeycloakConfig

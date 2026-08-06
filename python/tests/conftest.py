@@ -37,15 +37,8 @@ SAMPLE_CONFIG = {
         "workflow_image": "plaid/workflow:latest",
     },
     "features": {
-        "async_copy": False,
-        "backward_compatible_state": False,
-        "decrypted_accounts": False,
-        "enable_cors": True,
-        "fast_clean_csv": False,
-        "flashback": False,
-        "google_login": False,
-        "table_update_recreate": False,
-        "use_numeric_cast": False,
+        "sample_flag_on": True,
+        "sample_flag_off": False,
     },
     "keycloak": {
         "url": "https://auth.example.com",

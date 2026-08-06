@@ -40,12 +40,12 @@ def test_add_new_nested_path(plaid_config, clean_env):
 
 
 def test_yaml_type_coercion(plaid_config, clean_env):
-    clean_env.setenv("PLAID_CFG00features00async_copy", "false")
+    clean_env.setenv("PLAID_CFG00features00sample_flag_on", "false")
     clean_env.setenv("PLAID_CFG00database00port", "6543")
     cfg = PlaidConfig()
-    assert cfg.cfg['features']['async_copy'] is False
+    assert cfg.cfg['features']['sample_flag_on'] is False
     assert cfg.cfg['database']['port'] == 6543
-    assert cfg.features.async_copy is False
+    assert cfg.feature('sample_flag_on') is False
     assert cfg.database.port == 6543
 
 

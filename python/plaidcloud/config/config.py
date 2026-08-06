@@ -126,18 +126,6 @@ class GlobalConfig(NamedTuple):
     db_host: str = ""
 
 
-class FeatureConfig(NamedTuple):
-    async_copy: bool = True
-    backward_compatible_state: bool = True
-    decrypted_accounts: bool = True
-    enable_cors: bool = False
-    fast_clean_csv: bool = True
-    flashback: bool = True
-    google_login: bool = True
-    table_update_recreate: bool = True
-    use_numeric_cast: bool = True
-
-
 class ServiceConfig(NamedTuple):
     auth: str = "http://plaid-auth.plaid"
     client: str = "http://plaid-client.plaid"
@@ -250,15 +238,11 @@ class PlaidConfig:
             ec = ec._replace(hostname=ec.hostnames[0])
         return ec
 
-    @property
-    def features(self) -> FeatureConfig:
-        feature_config = self.cfg.get('features', {})
-        return FeatureConfig(**{k: v for k, v in feature_config.items() if k in FeatureConfig._fields})
-
     def feature(self, name: str, default=False):
-        """Read a feature flag by name, including flags not declared on FeatureConfig
-        (e.g. UI-set flags merged in via PLAID_CFG00features00<name> env overrides)."""
-        return self.cfg.get('features', {}).get(name, default)
+        """Read a feature flag by name. Flags are not declared anywhere — they are whatever
+        the tenant's config carries, including UI-set flags merged in via
+        PLAID_CFG00features00<name> env overrides."""
+        return (self.cfg.get('features') or {}).get(name, default)
 
     @property
     def keycloak(self) -> KeycloakConfig:

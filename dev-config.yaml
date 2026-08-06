@@ -14,16 +14,8 @@ environment:
   designation: dev
   tempdir: /tmp/
   verify_ssl: false
-features:
-  async_copy: true
-  backward_compatible_state: true
-  decrypted_accounts: true
-  enable_cors: false
-  fast_clean_csv: true
-  flashback: true
-  google_login: true
-  table_update_recreate: true
-  use_numeric_cast: true
+# No `features:` block by default — flags are per-tenant and undeclared; read them
+# with cfg.feature('name', default). Add the key here only to exercise one locally.
 rabbitmq:
   hostname: plaid-rabbitmq
   port: 5672

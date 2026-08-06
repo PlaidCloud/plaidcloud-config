@@ -20,7 +20,6 @@ config_mod = sys.modules['plaidcloud.config.config']
 
 DatabaseConfig = config_mod.DatabaseConfig
 EnvironmentConfig = config_mod.EnvironmentConfig
-FeatureConfig = config_mod.FeatureConfig
 KeycloakConfig = config_mod.KeycloakConfig
 TenantConfig = config_mod.TenantConfig
 GlobalConfig = config_mod.GlobalConfig
@@ -185,38 +184,33 @@ class TestEnvironmentConfig:
 
 
 # ---------------------------------------------------------------------------
-# FeatureConfig
+# Feature flags
 # ---------------------------------------------------------------------------
 
-class TestFeatureConfig:
+class TestFeatureFlags:
 
-    def test_full_config(self, plaid_config):
-        feat = plaid_config.features
-        assert isinstance(feat, FeatureConfig)
-        assert feat.async_copy is False
-        assert feat.enable_cors is True
-        assert feat.flashback is False
+    def test_reads_flags_from_config(self, plaid_config):
+        assert plaid_config.feature("sample_flag_on") is True
+        assert plaid_config.feature("sample_flag_off") is False
 
-    def test_defaults(self, missing_config):
-        feat = missing_config.features
-        assert feat.async_copy is True
-        assert feat.enable_cors is False
-        assert feat.flashback is True
-
-    def test_feature_reads_undeclared_flag(self, plaid_config):
+    def test_reads_flag_added_at_runtime(self, plaid_config):
         plaid_config.cfg["features"]["experimental_x"] = True
         assert plaid_config.feature("experimental_x") is True
-        assert not hasattr(plaid_config.features, "experimental_x")
 
-    def test_feature_reads_declared_field(self, plaid_config):
-        assert plaid_config.feature("flashback") is False
-        assert plaid_config.feature("flashback") == plaid_config.features.flashback
-
-    def test_feature_default_when_absent(self, missing_config):
+    def test_default_when_absent(self, missing_config):
         assert missing_config.feature("nope") is False
         assert missing_config.feature("nope", "d") == "d"
 
-    def test_feature_env_override_end_to_end(self, config_file, monkeypatch):
+    def test_default_when_features_block_empty(self, tmp_path, monkeypatch):
+        """A `features:` key rendered with no children loads as None, not {}, so the
+        default must survive an explicitly empty block as well as a missing one."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("features:\n")
+        mod = sys.modules["plaidcloud.config.config"]
+        monkeypatch.setattr(mod, "CONFIG_PATH", str(config_path))
+        assert PlaidConfig().feature("anything", "fallback") == "fallback"
+
+    def test_env_override_end_to_end(self, config_file, monkeypatch):
         mod = sys.modules["plaidcloud.config.config"]
         monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
         monkeypatch.setenv("PLAID_CFG00features00new_flag", "true")

@@ -555,3 +555,123 @@ class TestRedisViaPlaidConfig:
         rc = plaid_config.redis
         assert isinstance(rc, RedisConfig)
         assert "session" in rc.urls
+
+
+# ---------------------------------------------------------------------------
+# LakehouseConfig (sc-23158)
+# ---------------------------------------------------------------------------
+
+# A rendered `database:` block exactly as the tenant chart emits it once cp-rest
+# writes the collection: the single warehouse a tenant runs today, plus a second
+# one so ordering and id-matching are actually exercised.
+LAKEHOUSE_CFG = {
+    "database": {
+        "hostname": "starrocks-fe-service",
+        "port": 9030,
+        "superuser": "root",
+        "password": "pw",
+        "system": "starrocks",
+        "default_lakehouse_id": "lh-2222",
+        "lakehouses": [
+            {
+                "id": "lh-1111",
+                "name": "Databend",
+                "engine": "databend",
+                "status": "retired",
+                "coordinates": {"hostname": "plaid-databend-query", "port": 8000, "database_name": ""},
+                "catalog": None,
+                "compute": None,
+                "credential_ref": "lakehouse_admin_password",
+            },
+            {
+                "id": "lh-2222",
+                "name": "StarRocks",
+                "engine": "starrocks",
+                "status": "active",
+                "coordinates": {"hostname": "starrocks-fe-service", "port": 9030, "database_name": ""},
+                "catalog": None,
+                "compute": None,
+                "credential_ref": "lakehouse_admin_password",
+            },
+        ],
+    }
+}
+
+
+def _config_from(tmp_path, monkeypatch, cfg):
+    config_path = tmp_path / "cfg.yaml"
+    config_path.write_text(yaml.dump(cfg))
+    mod = sys.modules['plaidcloud.config.config']
+    monkeypatch.setattr(mod, "CONFIG_PATH", str(config_path))
+    return PlaidConfig()
+
+
+class TestLakehouseCollectionIsInertUntilDeclared:
+    """The property the rollout order rests on: a `lakehouses:` block can appear in a rendered
+    config.yaml before anything reads it, because DatabaseConfig filters keys it does not
+    declare. Without this, a values render landing ahead of a config-library bump would raise
+    TypeError inside `cfg.database` in every plaid pod on the tenant."""
+
+    def test_database_still_parses_with_the_collection_present(self, tmp_path, monkeypatch):
+        db = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).database
+        assert db.hostname == "starrocks-fe-service"
+        assert db.system == "starrocks"
+
+    def test_the_collection_is_not_a_database_field(self, tmp_path, monkeypatch):
+        # Read through `lakehouses` / `default_lakehouse_id`, never `cfg.database`.
+        db = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).database
+        assert "lakehouses" not in db._fields
+        assert "default_lakehouse_id" not in db._fields
+
+
+class TestLakehouses:
+
+    def test_parses_every_modelled_field(self, tmp_path, monkeypatch):
+        lakehouses = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).lakehouses
+        assert [lakehouse.id for lakehouse in lakehouses] == ["lh-1111", "lh-2222"]
+        starrocks = lakehouses[1]
+        assert isinstance(starrocks, config_mod.LakehouseConfig)
+        assert starrocks.name == "StarRocks"
+        assert starrocks.engine == "starrocks"
+        assert starrocks.status == "active"
+        assert starrocks.coordinates == {
+            "hostname": "starrocks-fe-service", "port": 9030, "database_name": ""}
+        assert starrocks.catalog is None
+        assert starrocks.compute is None
+        assert starrocks.credential_ref == "lakehouse_admin_password"
+
+    def test_absent_collection_is_empty_not_an_error(self, missing_config, plaid_config):
+        # A tenant that has not been republished has no collection. Not a failure.
+        assert missing_config.lakehouses == []
+        assert plaid_config.lakehouses == []
+
+    def test_extra_keys_ignored(self, tmp_path, monkeypatch):
+        # Same forward-compatibility as every other block: the control plane may add a field
+        # before this library declares it.
+        cfg = {"database": {"lakehouses": [{"id": "lh-1", "role": "primary"}]}}
+        lakehouse, = _config_from(tmp_path, monkeypatch, cfg).lakehouses
+        assert lakehouse.id == "lh-1"
+        assert not hasattr(lakehouse, "role")
+
+    def test_credential_ref_is_a_key_name_not_a_credential(self, tmp_path, monkeypatch):
+        # Nothing here resolves the ref, and no field carries a secret — the record is safe to
+        # commit to the values file in Git, which is exactly where it comes from.
+        lakehouses = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).lakehouses
+        assert all(lakehouse.credential_ref == "lakehouse_admin_password" for lakehouse in lakehouses)
+        assert "password" not in config_mod.LakehouseConfig._fields
+
+
+class TestDefaultLakehouseId:
+
+    def test_reads_the_id(self, tmp_path, monkeypatch):
+        assert _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).default_lakehouse_id == "lh-2222"
+
+    def test_empty_when_absent(self, missing_config, plaid_config):
+        assert missing_config.default_lakehouse_id == ""
+        assert plaid_config.default_lakehouse_id == ""
+
+    def test_is_not_the_first_lakehouse(self, tmp_path, monkeypatch):
+        # A "first in the list" fallback is indistinguishable from a correct answer while a
+        # tenant has one lakehouse, and silently wrong the moment it has two.
+        cfg = {"database": {"lakehouses": [{"id": "lh-1"}, {"id": "lh-2"}]}}
+        assert _config_from(tmp_path, monkeypatch, cfg).default_lakehouse_id == ""

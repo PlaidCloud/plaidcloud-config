@@ -55,6 +55,30 @@ class DatabaseConfig(NamedTuple):
     lakekeeper_token: str = ""
 
 
+class LakehouseConfig(NamedTuple):
+    """One of the warehouses a tenant has (sc-23158).
+
+    Mirrors the control plane's Lakehouse record field for field. `id` is assigned by the
+    control plane, opaque and immutable — it is the primary key a project's `lakehouse_id`
+    names, deliberately not derived from the coordinates, which are mutable.
+
+    ⚠️ `credential_ref` is the NAME of a Vault key, never a credential. Nothing in this
+    library resolves it; a caller that wants the password reads that key out of the tenant's
+    Vault entry.
+
+    `catalog` and `compute` are nullable by design: the control plane owns neither, and a
+    default here would be a stale copy of somebody else's.
+    """
+    id: str = ""
+    name: str = ""
+    engine: str = ""
+    status: str = ""
+    coordinates: dict = {}
+    catalog: dict | None = None
+    compute: dict | None = None
+    credential_ref: str = ""
+
+
 class EnvironmentConfig(NamedTuple):
     hostname: str = "plaidcloud.io"
     hostnames: list = ["plaidcloud.io"]
@@ -228,6 +252,30 @@ class PlaidConfig:
     def database(self) -> DatabaseConfig:
         db_config = self.cfg.get('database', {})
         return DatabaseConfig(**{k: v for k, v in db_config.items() if k in DatabaseConfig._fields})
+
+    @property
+    def lakehouses(self) -> list[LakehouseConfig]:
+        """Every lakehouse this tenant has, in the order the control plane recorded them.
+
+        Empty on every tenant whose values file predates the render — an absent collection is
+        not an error, it is a tenant that has not been republished yet.
+        """
+        db_config = self.cfg.get('database') or {}
+        return [
+            LakehouseConfig(**{k: v for k, v in lakehouse.items() if k in LakehouseConfig._fields})
+            for lakehouse in db_config.get('lakehouses') or []
+        ]
+
+    @property
+    def default_lakehouse_id(self) -> str:
+        """The id newly created projects bind to. Empty when the tenant has no collection.
+
+        An id, not a record: a project stores this id, and resolving it against `lakehouses`
+        is the caller's business. Matching by id is the only correct resolution — with one
+        lakehouse a "first in the list" fallback is indistinguishable from a real answer and
+        stops being right exactly when a second one appears.
+        """
+        return (self.cfg.get('database') or {}).get('default_lakehouse_id') or ""
 
     @property
     def environment(self) -> EnvironmentConfig:

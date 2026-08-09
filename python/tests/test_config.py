@@ -574,6 +574,9 @@ LAKEHOUSE_CFG = {
         "password": "pw",
         "system": "starrocks",
         "default_lakehouse_id": "lh-2222",
+        # Rendered beside `lakehouses:`, one entry per DISTINCT `credential_ref` — both
+        # records below name the same ref, and the chart's `uniq` collapses them to one.
+        "lakehouse_credentials": {"lakehouse_admin_password": "lh-secret"},
         "lakehouses": [
             {
                 "id": "lh-1111",
@@ -730,10 +733,12 @@ class TestLakehouseCollectionIsInertUntilDeclared:
         assert db.system == "starrocks"
 
     def test_the_collection_is_not_a_database_field(self, tmp_path, monkeypatch):
-        # Read through `lakehouses` / `default_lakehouse_id`, never `cfg.database`.
+        # Read through `lakehouses` / `default_lakehouse_id` / `lakehouse_credentials`, never
+        # `cfg.database`.
         db = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).database
         assert "lakehouses" not in db._fields
         assert "default_lakehouse_id" not in db._fields
+        assert "lakehouse_credentials" not in db._fields
 
 
 class TestLakehouses:
@@ -830,6 +835,58 @@ class TestDefaultLakehouseId:
         # tenant has one lakehouse, and silently wrong the moment it has two.
         cfg = {"database": {"lakehouses": [{"id": "lh-1"}, {"id": "lh-2"}]}}
         assert _config_from(tmp_path, monkeypatch, cfg).default_lakehouse_id == ""
+
+
+class TestLakehouseCredentials:
+    """The other half of `credential_ref`: the chart joins the ref to its Vault value and
+    renders the map beside `lakehouses:`. Without this accessor `resolve_lakehouse`'s
+    `password` argument has no source in this library at all."""
+
+    def test_reads_the_map(self, tmp_path, monkeypatch):
+        credentials = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).lakehouse_credentials
+        assert credentials == {"lakehouse_admin_password": "lh-secret"}
+
+    def test_absent_map_is_empty_not_an_error(self, tmp_path, monkeypatch, missing_config,
+                                              plaid_config):
+        # The rollout property everything else rests on: this library is read by services that
+        # pin an older one, and a tenant whose values file predates the render carries no map.
+        # `plaid_config` has a full `database:` block and no `lakehouse_credentials` in it;
+        # `missing_config` has no config file at all; the third is `database:` written with
+        # nothing under it, which YAML loads as None — the case the neighbouring
+        # `lakehouses` / `default_lakehouse_id` guards also exist for.
+        assert plaid_config.lakehouse_credentials == {}
+        assert missing_config.lakehouse_credentials == {}
+        assert _config_from(tmp_path, monkeypatch, {"database": None}).lakehouse_credentials == {}
+
+    def test_a_ref_resolves_to_its_credential(self, tmp_path, monkeypatch):
+        # The join the whole field exists for, spelled out: a record names a key, the map
+        # carries that key's value, and that value is what `resolve_lakehouse` is handed.
+        parsed = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG)
+        resolved = config_mod.resolve_lakehouse(
+            parsed.lakehouses[1],
+            parsed.database,
+            parsed.lakehouse_credentials[parsed.lakehouses[1].credential_ref],
+        )
+        assert resolved.password == "lh-secret"
+
+    def test_a_customer_ref_is_a_key_like_any_other(self, tmp_path, monkeypatch):
+        # `lakehouse_lh-<32hex>_password` is the shape cp-rest mints for a customer-owned
+        # warehouse, and it is a dict key here — no parsing, no per-engine handling.
+        ref = f"lakehouse_{CUSTOMER_ID}_password"
+        cfg = {"database": {"lakehouses": [{"id": CUSTOMER_ID, "credential_ref": ref}],
+                            "lakehouse_credentials": {ref: "customer-secret"}}}
+        assert _config_from(tmp_path, monkeypatch, cfg).lakehouse_credentials[ref] == "customer-secret"
+
+    def test_no_credential_value_reaches_a_log_or_a_repr(self, tmp_path, monkeypatch, caplog):
+        # These are the only secrets this library hands out that are not inside a NamedTuple
+        # field somebody already treats as one. Parsing must stay silent, and `str(cfg)` — the
+        # one dump path PlaidConfig has — must not grow into a config dump.
+        parsed = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG)
+        with caplog.at_level(logging.DEBUG, logger="plaidcloud.config.config"):
+            assert parsed.lakehouse_credentials
+        assert "lh-secret" not in caplog.text
+        assert "lh-secret" not in str(parsed)
+        assert "lh-secret" not in repr(parsed)
 
 
 class TestResolveLakehouse:

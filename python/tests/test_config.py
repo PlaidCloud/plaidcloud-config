@@ -599,14 +599,65 @@ LAKEHOUSE_CFG = {
 }
 
 
-# A record exactly as cp-rest's `build_customer_lakehouse` emits one: `disabled` and
-# `superuser` at top level beside the nested coordinate/catalog/compute blocks.
-CUSTOMER_LAKEHOUSE_CFG = {
+# THE RECORD EVERY TENANT ON THE FLEET CARRIES. Copied key-for-key from cp-rest's
+# `lakehouse_tools.mint_tenant_lakehouse`, which emits exactly these eight keys: NO
+# `superuser`, NO `disabled`, and `catalog: None` because cp-rest does not own the
+# Iceberg/Lakekeeper coordinates. Tests that patch a superuser onto a record are testing a
+# precondition production does not have.
+MINTED_LAKEHOUSE_CFG = {
     "database": {
-        "default_lakehouse_id": "lh-3333",
+        # The tenant's own block, which is what a provisioned record re-describes. The
+        # lakekeeper_url is the per-release Service the chart actually renders
+        # (configmap-tenant.yaml), NOT DatabaseConfig's class default.
+        "hostname": "starrocks-fe-service",
+        "port": 9030,
+        "superuser": "root",
+        "password": "tenant-pw",
+        "system": "starrocks",
+        "iceberg_catalog": "tenant_catalog",
+        "lakekeeper_url": "http://plaid-tenant-lakekeeper:8181",
+        "lakekeeper_warehouse": "tenant_wh",
+        "lakekeeper_token": "tenant-token",
+        "cloud_url": "postgresql://c1:pw@plaid-shared-postgres:5432/cloud_1",
+        "default_lakehouse_id": "lh-mint",
         "lakehouses": [
             {
-                "id": "lh-3333",
+                "id": "lh-mint",
+                "name": "StarRocks",
+                "engine": "starrocks",
+                "status": "provisioning",
+                "coordinates": {"hostname": "starrocks-fe-service", "port": 9030,
+                                "database_name": ""},
+                "catalog": None,
+                "compute": None,
+                "credential_ref": "lakehouse_admin_password",
+            },
+        ],
+    }
+}
+
+
+# A record exactly as cp-rest's `build_customer_lakehouse` emits one: `disabled` and
+# `superuser` at top level beside the nested coordinate/catalog/compute blocks.
+# `id` and `credential_ref` are a real `mint_lakehouse_id` shape — `lh-` plus 32 hex. That is
+# load-bearing, not decoration: cp-rest's `is_credential_ref` anchors on exactly that pattern,
+# and it is how a customer record is told apart from a provisioned one.
+CUSTOMER_ID = "lh-0123456789abcdef0123456789abcdef"
+CUSTOMER_LAKEHOUSE_CFG = {
+    "database": {
+        # Present so a test can prove these are NOT inherited by a customer record.
+        "hostname": "starrocks-fe-service",
+        "port": 9030,
+        "superuser": "root",
+        "password": "tenant-pw",
+        "system": "starrocks",
+        "lakekeeper_url": "http://plaid-tenant-lakekeeper:8181",
+        "lakekeeper_token": "tenant-token",
+        "cloud_url": "postgresql://c1:pw@plaid-shared-postgres:5432/cloud_1",
+        "default_lakehouse_id": CUSTOMER_ID,
+        "lakehouses": [
+            {
+                "id": CUSTOMER_ID,
                 "name": "Customer Snowflake",
                 "engine": "snowflake",
                 "status": "active",
@@ -616,7 +667,7 @@ CUSTOMER_LAKEHOUSE_CFG = {
                                 "database_name": "PLAID_DATA"},
                 "catalog": None,
                 "compute": {"warehouse": "PLAID_WH", "role": "PLAID_ROLE", "http_path": None},
-                "credential_ref": "lakehouse_lh-3333_password",
+                "credential_ref": f"lakehouse_{CUSTOMER_ID}_password",
             },
         ],
     }
@@ -678,6 +729,7 @@ class TestLakehouses:
         assert lakehouse.id == "lh-1"
         assert not hasattr(lakehouse, "role")
 
+    @pytest.mark.usefixtures("fresh_warnings")
     def test_extra_keys_are_dropped_out_loud(self, tmp_path, monkeypatch, caplog):
         # Ignored is not the same as unnoticed. `disabled` and `superuser` went missing here
         # for a release because the filter discarded them without a word.
@@ -687,6 +739,19 @@ class TestLakehouses:
         assert "lh-1" in caplog.text
         assert "role, tier" in caplog.text
 
+    @pytest.mark.usefixtures("fresh_warnings")
+    def test_the_warning_does_not_repeat_per_read(self, tmp_path, monkeypatch, caplog):
+        # `lakehouses` is a PROPERTY and plaid re-reads it on every project resolution. A
+        # warning that repeats per read floods exactly the rollout window it exists to report,
+        # and a flood is as unreadable as silence.
+        cfg = {"database": {"lakehouses": [{"id": "lh-1", "role": "primary"}]}}
+        parsed = _config_from(tmp_path, monkeypatch, cfg)
+        with caplog.at_level(logging.WARNING, logger="plaidcloud.config.config"):
+            for _ in range(5):
+                assert parsed.lakehouses
+        assert caplog.text.count("lh-1") == 1
+
+    @pytest.mark.usefixtures("fresh_warnings")
     def test_a_fully_declared_record_says_nothing(self, tmp_path, monkeypatch, caplog):
         # The warning has to be a signal, not a per-pod-start constant.
         with caplog.at_level(logging.WARNING, logger="plaidcloud.config.config"):
@@ -740,20 +805,93 @@ class TestResolveLakehouse:
     `DatabaseConfig._fields`.
     """
 
-    def _lakehouse(self, tmp_path, monkeypatch, cfg, **overrides):
-        lakehouse, = _config_from(tmp_path, monkeypatch, cfg).lakehouses
-        return lakehouse._replace(**overrides)
+    def _resolve(self, tmp_path, monkeypatch, cfg, password="pw", **overrides):
+        """Resolve the one lakehouse in `cfg` against that same config's `database:` block —
+        the pairing production has, rather than a hand-built default."""
+        parsed = _config_from(tmp_path, monkeypatch, cfg)
+        lakehouse, = parsed.lakehouses
+        return config_mod.resolve_lakehouse(
+            lakehouse._replace(**overrides), parsed.database, password)
+
+    # --- the record the fleet actually carries -----------------------------------------
+
+    def test_a_minted_record_inherits_the_tenant_superuser(self, tmp_path, monkeypatch):
+        # `mint_tenant_lakehouse` emits NO `superuser`. Resolving without a fallback yields a
+        # blank principal and a DSN nothing can authenticate.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert resolved.superuser == "root"
+
+    def test_a_minted_record_inherits_the_tenant_lakekeeper(self, tmp_path, monkeypatch):
+        # `catalog: None` must NOT mean DatabaseConfig's class defaults: the class default
+        # `http://lakekeeper:8181` names no Service in a tenant namespace, and
+        # `_lakehouse_coordinate` reads a stamped lakehouse with no fallback to cfg.database.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert resolved.lakekeeper_url == "http://plaid-tenant-lakekeeper:8181"
+        assert resolved.iceberg_catalog == "tenant_catalog"
+        assert resolved.lakekeeper_warehouse == "tenant_wh"
+
+    def test_a_minted_record_inherits_the_tenant_lakekeeper_token(self, tmp_path, monkeypatch):
+        # `LakehouseCatalog` has no token field at all, so inheritance is the only source.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert resolved.lakekeeper_token == "tenant-token"
+
+    def test_a_minted_record_resolves_while_provisioning(self, tmp_path, monkeypatch):
+        # `create_tenant` mints `status='provisioning'` and only flips it when the tenant
+        # reaches running, so bootstrap MUST be able to connect to build the warehouse.
+        parsed = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert parsed.lakehouses[0].status == "provisioning"
+        assert self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG).hostname
+
+    def test_a_minted_record_is_not_a_customer_lakehouse(self, tmp_path, monkeypatch):
+        lakehouse, = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG).lakehouses
+        assert config_mod.is_customer_lakehouse(lakehouse) is False
+
+    # --- a customer record inherits nothing --------------------------------------------
+
+    def test_a_customer_record_is_recognised(self, tmp_path, monkeypatch):
+        lakehouse, = _config_from(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG).lakehouses
+        assert config_mod.is_customer_lakehouse(lakehouse) is True
+
+    def test_a_customer_record_does_not_inherit_the_tenant_lakekeeper(self, tmp_path, monkeypatch):
+        # Falling back to the tenant's own StarRocks coordinates for a warehouse PlaidCloud
+        # does not run is the "answers for the wrong warehouse" failure.
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
+        untouched = DatabaseConfig(hostname="", port=None, superuser="", password="", system="")
+        assert resolved.lakekeeper_url == untouched.lakekeeper_url
+        assert resolved.iceberg_catalog == untouched.iceberg_catalog
+        assert resolved.lakekeeper_token == ""
+
+    def test_a_customer_record_with_no_superuser_is_refused(self, tmp_path, monkeypatch):
+        # Loud, not defaulted: there is no tenant principal that means anything on a
+        # warehouse the customer owns.
+        with pytest.raises(ValueError, match="no superuser"):
+            self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG,
+                          disabled=False, superuser="")
+
+    def test_a_customer_record_keeps_its_own_superuser(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
+        assert resolved.superuser == "SVC_PLAID"
+
+    def test_a_recorded_superuser_beats_the_tenant_default(self, tmp_path, monkeypatch):
+        # Precedence is only observable on a PROVISIONED record, where the tenant default is
+        # populated too. Inheritance fills a gap; it does not override what the record says.
+        parsed = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert parsed.database.superuser == "root"
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                                 superuser="recorded_admin")
+        assert resolved.superuser == "recorded_admin"
+
+    # --- the DSN contract ---------------------------------------------------------------
 
     def test_returns_a_database_config(self, tmp_path, monkeypatch):
         # The TYPE and not just the attributes: `lakehouse_fingerprint` builds the engine-cache
         # key from `DatabaseConfig._fields`, so a record of another type drops whatever it does
         # not declare out of the key and two lakehouses quietly share one engine.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        assert isinstance(config_mod.resolve_lakehouse(lakehouse, "pw"), DatabaseConfig)
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert isinstance(resolved, DatabaseConfig)
 
     def test_every_field_build_lakehouse_dsns_reads(self, tmp_path, monkeypatch):
-        starrocks = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).lakehouses[1]
-        resolved = config_mod.resolve_lakehouse(starrocks._replace(superuser="root"), "pw")
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
         assert resolved.system == "starrocks"
         assert resolved.superuser == "root"
         assert resolved.hostname == "starrocks-fe-service"
@@ -762,63 +900,105 @@ class TestResolveLakehouse:
         assert resolved.query_params == {}
         assert resolved.password == "pw"
 
+    def test_carries_the_control_plane_id(self, tmp_path, monkeypatch):
+        # plaid's `assigned_lakehouse_id` reads `lakehouse_id` off the record. Without it,
+        # every member of a >1-lakehouse collection answers '' and every project binding fails
+        # to resolve.
+        assert self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG).lakehouse_id == "lh-mint"
+
     def test_the_password_comes_from_the_caller_not_the_record(self, tmp_path, monkeypatch):
         # `credential_ref` is a Vault key NAME. Nothing here resolves it, so the credential
-        # cannot come from anywhere but the argument.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        assert config_mod.resolve_lakehouse(lakehouse, "from-vault").password == "from-vault"
+        # cannot come from anywhere but the argument — not the record, not the tenant default.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                                 password="from-vault")
+        assert resolved.password == "from-vault"
 
     def test_snowflake_coordinates_carry_no_port(self, tmp_path, monkeypatch):
         # A Snowflake account URL takes no port; `URL.create` accepts None and omits it.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        resolved = config_mod.resolve_lakehouse(lakehouse, "pw")
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
         assert resolved.port is None
         assert resolved.hostname == "acme-x1.snowflakecomputing.com"
         assert resolved.database_name == "PLAID_DATA"
 
+    def test_a_null_database_name_does_not_become_the_string_none(self, tmp_path, monkeypatch):
+        resolved = self._resolve(
+            tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+            coordinates={"hostname": "h", "port": 1, "database_name": None})
+        assert resolved.database_name == ""
+
     def test_compute_becomes_query_params(self, tmp_path, monkeypatch):
         # Snowflake selects compute with warehouse/role, Databricks with http_path; both ride
-        # the DSN query string. Unset members are null and must not render as literal 'None'.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        resolved = config_mod.resolve_lakehouse(lakehouse, "pw")
+        # the DSN query string.
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
         assert resolved.query_params == {"warehouse": "PLAID_WH", "role": "PLAID_ROLE"}
 
-    def test_a_null_catalog_leaves_the_iceberg_defaults_alone(self, tmp_path, monkeypatch):
-        # cp-rest sets `catalog: None` on the warehouses it provisions because it does not own
-        # these coordinates. Rendering that as '' would blank a working Lakekeeper.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        resolved = config_mod.resolve_lakehouse(lakehouse, "pw")
-        untouched = DatabaseConfig(hostname="", port=None, superuser="", password="", system="")
-        assert resolved.iceberg_catalog == untouched.iceberg_catalog
-        assert resolved.lakekeeper_url == untouched.lakekeeper_url
-        assert resolved.lakekeeper_warehouse == untouched.lakekeeper_warehouse
+    def test_empty_compute_members_are_absent_not_blank(self, tmp_path, monkeypatch):
+        # cp-rest's `missing_connection_fields` treats '' as absent. Forwarding it renders
+        # `?role=`, which asks the vendor to assume a role named ''.
+        resolved = self._resolve(
+            tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False,
+            compute={"warehouse": "PLAID_WH", "role": "", "http_path": None})
+        assert resolved.query_params == {"warehouse": "PLAID_WH"}
+
+    def test_an_explicitly_empty_catalog_member_survives(self, tmp_path, monkeypatch):
+        # An operator setting this to '' is saying "no Iceberg here". A truthiness filter
+        # would discard that and substitute the tenant's catalog.
+        resolved = self._resolve(
+            tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+            catalog={"iceberg_catalog": "", "lakekeeper_url": "", "lakekeeper_warehouse": ""})
+        assert resolved.iceberg_catalog == ""
+        assert resolved.lakekeeper_url == ""
 
     def test_a_populated_catalog_wins(self, tmp_path, monkeypatch):
-        lakehouse = self._lakehouse(
-            tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False,
+        resolved = self._resolve(
+            tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
             catalog={"iceberg_catalog": "ice2", "lakekeeper_url": "http://lk-b:8181",
-                     "lakekeeper_warehouse": "wh2"},
-        )
-        resolved = config_mod.resolve_lakehouse(lakehouse, "pw")
+                     "lakekeeper_warehouse": "wh2"})
         assert resolved.iceberg_catalog == "ice2"
         assert resolved.lakekeeper_url == "http://lk-b:8181"
         assert resolved.lakekeeper_warehouse == "wh2"
 
-    def test_cloud_url_is_not_a_lakehouse_coordinate(self, tmp_path, monkeypatch):
+    def test_a_partial_catalog_inherits_only_what_it_omits(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                                 catalog={"iceberg_catalog": "ice2"})
+        assert resolved.iceberg_catalog == "ice2"
+        assert resolved.lakekeeper_url == "http://plaid-tenant-lakekeeper:8181"
+
+    def test_cloud_url_is_never_per_lakehouse(self, tmp_path, monkeypatch):
         # One shared-Postgres catalog per tenant, read from `cfg.database` by
-        # `orm.build_shared_dsns`. A per-lakehouse copy would aim it at the wrong tenant.
-        lakehouse = self._lakehouse(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        assert config_mod.resolve_lakehouse(lakehouse, "pw").cloud_url == ""
+        # `orm.build_shared_dsns`. Neither the record nor the tenant default may seed it here:
+        # both carry one in this fixture, and the resolved record must still be blank.
+        parsed = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        assert parsed.database.cloud_url
+        resolved = self._resolve(
+            tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+            coordinates={"hostname": "h", "port": 1, "database_name": "",
+                         "cloud_url": "postgresql://sneaky/x"})
+        assert resolved.cloud_url == ""
+
+    # --- refusals -----------------------------------------------------------------------
 
     def test_a_disabled_lakehouse_is_refused(self, tmp_path, monkeypatch):
         # This is the only seam in this library where the flag can bite. Returning something
         # connectable here is what makes `disabled` decoration.
-        lakehouse, = _config_from(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG).lakehouses
-        with pytest.raises(ValueError, match="lh-3333"):
-            config_mod.resolve_lakehouse(lakehouse, "pw")
+        with pytest.raises(ValueError, match=CUSTOMER_ID):
+            self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG)
 
     def test_a_retired_lakehouse_is_not_refused(self, tmp_path, monkeypatch):
-        # `retired` blocks NEW project bindings; the projects already there still read.
-        databend = _config_from(tmp_path, monkeypatch, LAKEHOUSE_CFG).lakehouses[0]
-        assert databend.status == "retired"
-        assert config_mod.resolve_lakehouse(databend, "pw").hostname == "plaid-databend-query"
+        # `retired` stops NEW project bindings; the projects already there still read.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, status="retired")
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_a_record_naming_no_host_is_refused(self, tmp_path, monkeypatch):
+        # Otherwise this renders `starrocks://root:pw@/`, which fails as a connection error a
+        # long way from the config that caused it.
+        with pytest.raises(ValueError, match="names no warehouse"):
+            self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, coordinates={})
+
+    def test_a_record_naming_no_engine_is_refused(self, tmp_path, monkeypatch):
+        with pytest.raises(ValueError, match="names no warehouse"):
+            self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, engine="")
+
+    def test_a_null_coordinates_block_is_refused(self, tmp_path, monkeypatch):
+        with pytest.raises(ValueError, match="names no warehouse"):
+            self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, coordinates=None)

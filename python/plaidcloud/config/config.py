@@ -454,6 +454,27 @@ class PlaidConfig:
         return (self.cfg.get('database') or {}).get('default_lakehouse_id') or ""
 
     @property
+    def lakehouse_credentials(self) -> dict[str, str]:
+        """The secrets `credential_ref` names, keyed by that ref — `resolve_lakehouse`'s
+        `password` argument comes from here.
+
+        The chart renders this beside `lakehouses:` (one entry per DISTINCT ref) because the
+        record itself must stay committable to Git. Without this accessor there is no way to
+        read it: `DatabaseConfig`'s field filter drops it, deliberately, and `LakehouseConfig`
+        declares no password field.
+
+        Empty on every tenant whose values file predates the render — the chart emits the map
+        only inside `with .lakehouses`, so no collection means no map, and that is a tenant not
+        yet republished rather than an error.
+
+        ⚠️ VALUES ARE SECRETS. Nothing here may be logged, repr'd or put in an exception
+        message; the keys are safe (they are Vault key names), the values never are. Note that
+        a value may be the chart's `MISSING-VAULT-KEY-<ref>` sentinel, which is a real password
+        the tenant's Vault entry does not carry.
+        """
+        return (self.cfg.get('database') or {}).get('lakehouse_credentials') or {}
+
+    @property
     def environment(self) -> EnvironmentConfig:
         env_config = self.cfg.get('environment', {})
         ec = EnvironmentConfig(**{k: v for k, v in env_config.items() if k in EnvironmentConfig._fields})

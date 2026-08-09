@@ -151,7 +151,8 @@ _FIXED_PRINCIPAL = {'databricks': 'token'}
 #: class default is already '' — so that a change to `DatabaseConfig`'s defaults cannot
 #: silently re-fabricate one of them.
 _NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="",
-                                 iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="")
+                                 iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="",
+                                 lakekeeper_token="")
 
 
 def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig,

@@ -9,7 +9,9 @@ __maintainer__ = "Garrett Bates"
 __email__ = "garrett@plaidcloud.com"
 
 """Loads the configuration file used by plaid apps in kubernetes."""
+import logging
 import os
+import re
 import yaml
 from typing import NamedTuple
 from plaidcloud.config.redis import RedisConfig
@@ -18,6 +20,12 @@ from plaidcloud.config.rabbitmq import RMQConfig
 CONFIG_PATH = os.environ.get('PLAID_CONFIG_PATH', '/etc/plaidcloud/config.yaml')
 ENV_OVERRIDE_PREFIX = 'PLAID_CFG'
 ENV_OVERRIDE_SEP = '00'
+
+logger = logging.getLogger(__name__)
+
+#: (lakehouse id, undeclared keys) already reported by `PlaidConfig.lakehouses`. Process-wide
+#: because the warning describes the config file, which does not change under a running pod.
+_WARNED_UNDECLARED = set()
 
 
 def _apply_env_overrides(cfg: dict) -> None:
@@ -53,6 +61,12 @@ class DatabaseConfig(NamedTuple):
     lakekeeper_url: str = "http://lakekeeper:8181"
     lakekeeper_warehouse: str = ""
     lakekeeper_token: str = ""
+    # The control-plane id of the lakehouse this describes, for records `resolve_lakehouse`
+    # builds. Empty on `cfg.database`, which is the chart's block and names no lakehouse — and
+    # empty is what plaid's `assigned_lakehouse_id` already reads for "unassigned". Without it
+    # a resolved record cannot be matched back to a project's `lakehouse_id`, so on a tenant
+    # with two lakehouses every binding fails to resolve.
+    lakehouse_id: str = ""
 
 
 class LakehouseConfig(NamedTuple):
@@ -68,15 +82,156 @@ class LakehouseConfig(NamedTuple):
 
     `catalog` and `compute` are nullable by design: the control plane owns neither, and a
     default here would be a stale copy of somebody else's.
+
+    ⚠️ `coordinates`, `catalog` and `compute` stay NESTED, and are unpacked in exactly one
+    place — `resolve_lakehouse`. They are not free-form: they are cp-rest's
+    `LakehouseCoordinates` / `LakehouseCatalog` / `LakehouseCompute` models
+    (`router/tenant.py`), which is the shape the values file carries. Top-level twins would
+    parse — they would just sit at their defaults, unfed by any rendered record — so the
+    reason not to add them is that they would be a second, always-empty answer to a question
+    `coordinates` already answers, not that the record would fail to load.
     """
     id: str = ""
     name: str = ""
     engine: str = ""
     status: str = ""
+    # `disabled`, not `enabled`, and False is the safe zero value: the provisioned record every
+    # tenant carries does not stamp it, so a missing key must read as "on". Dropping it silently
+    # (which the field filter did until it was declared) is how an operator-disabled lakehouse
+    # comes back connectable.
+    disabled: bool = False
+    # The connection principal. NOT a coordinate — two logins against one host, port and
+    # database are one physical store — so it is top-level, as cp-rest emits it.
+    superuser: str = ""
     coordinates: dict = {}
     catalog: dict | None = None
     compute: dict | None = None
     credential_ref: str = ""
+
+
+#: A customer-owned lakehouse, identified as cp-rest identifies one
+#: (`lakehouse_tools.is_credential_ref`): its credential lives in the per-lakehouse vault-only
+#: namespace. Anything else is PlaidCloud-provisioned. Keyed on the credential ref rather than
+#: `engine` because that is what cp-rest's own `reconcile_default_lakehouse` keys on; an engine
+#: test would misfile the first customer StarRocks.
+#:
+#: The `lh-` plus 32 lowercase hex anchoring is cp-rest's and is load-bearing there: a looser
+#: `lakehouse_.*_password` also matches `lakehouse_admin_password` and every
+#: `lakehouse_user_<name>_password`. This is a SECOND copy of that pattern with no shared
+#: source — if cp-rest's `mint_lakehouse_id` shape ever changes, both must move together.
+#:
+#: It FAILS OPEN, deliberately: anything unrecognised (absent, empty, legacy, uppercase hex,
+#: hand-edited) reads as PlaidCloud-provisioned and inherits the tenant block. That is the
+#: right way round for the shapes cp-rest emits, where the only non-matching ref is the legacy
+#: provisioned one. On a hand-edited values file it means a malformed customer ref inherits
+#: the tenant's superuser and Lakekeeper token; cp-rest cannot produce that, and failing the
+#: other way would refuse every real provisioned record.
+_CUSTOMER_CREDENTIAL_REF = re.compile(r'^lakehouse_lh-[0-9a-f]{32}_password$')
+
+#: The principal to use when an engine's record carries none, for engines that conventionally
+#: take a constant rather than a configured account. cp-rest omits `superuser` from Databricks'
+#: required set on purpose — the field is rendered into the Git-committed values file, so
+#: demanding it invites an operator to paste the PAT there.
+#:
+#: `token` is the PAT convention, corroborated by cp-rest's comment and by plaid's own fixtures
+#: (`databricks://token:x@host:443/default`). It is NOT universal: Databricks OAuth M2M
+#: authenticates a service principal by client id, and plaid's own customer-connection builder
+#: (`connection.py` `_form_connection_string`) takes the username from `db_user` rather than
+#: hardcoding anything. So this is a DEFAULT, not a rule — a record that names a `superuser`
+#: always wins, which is the only escape hatch a non-PAT auth mode has.
+_FIXED_PRINCIPAL = {'databricks': 'token'}
+
+#: What a customer record inherits: nothing. The empty `superuser` is what makes a genuinely
+#: missing principal raise, and the Iceberg coordinates are EMPTY rather than
+#: `DatabaseConfig`'s class defaults — those name `http://lakekeeper:8181`, a Service that
+#: exists in no tenant namespace. Empty is also what plaid reads as "no Iceberg half": a
+#: truthy URL sends `drop_schema` and the `getattr(db, 'LAKEKEEPER_URL', None)` probes down
+#: the Iceberg branch, so a fabricated default would aim them at a Lakekeeper this warehouse
+#: has nothing to do with. All three are spelled out even though `lakekeeper_warehouse`'s
+#: class default is already '' — so that a change to `DatabaseConfig`'s defaults cannot
+#: silently re-fabricate one of them.
+_NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="",
+                                 iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="",
+                                 lakekeeper_token="")
+
+
+def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig,
+                      password: str) -> DatabaseConfig:
+    """The connectable form of one lakehouse, for `orm.build_lakehouse_dsns`.
+
+    A `DatabaseConfig` because the TYPE is read: `orm.lakehouse_fingerprint` builds the
+    engine-cache key from `DatabaseConfig._fields`, so another type drops fields out of the
+    key and lets two lakehouses share one engine.
+
+    `tenant_default` is `cfg.database`, and it is the inheritance base ONLY for a
+    PlaidCloud-provisioned record — which re-describes the warehouse `cfg.database` already
+    addresses. `mint_tenant_lakehouse` emits no `superuser` and `catalog: None`, so without
+    that a fleet-standard record resolves to a blank principal and to the class-default
+    `lakekeeper_url`, which names no Service in a tenant namespace. A customer record inherits
+    nothing: falling back to the tenant's own warehouse for one PlaidCloud does not run is the
+    "answers for the wrong warehouse while looking like it worked" failure.
+
+    `password` is an argument: the record names a Vault key, and nothing here resolves it.
+
+    Refuses a disabled lakehouse, and one that names no warehouse at all. `status` is NOT
+    refused — `provisioning` is what `create_tenant` mints and what bootstrap must connect to
+    in order to build the warehouse, and `retired` still serves the projects already on it.
+    """
+    if lakehouse.disabled:
+        raise ValueError(
+            f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) is disabled and cannot be connected to'
+        )
+    coordinates = lakehouse.coordinates or {}
+    hostname = (coordinates.get('hostname') or '').strip()
+    if not lakehouse.engine or not hostname:
+        raise ValueError(
+            f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) names no warehouse: '
+            f'engine={lakehouse.engine!r}, coordinates.hostname={hostname!r}'
+        )
+
+    customer = is_customer_lakehouse(lakehouse)
+    inherited = _NO_INHERITANCE if customer else tenant_default
+    superuser = (lakehouse.superuser or _FIXED_PRINCIPAL.get(lakehouse.engine)
+                 or inherited.superuser)
+    if not superuser:
+        raise ValueError(
+            f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) names no connection principal: '
+            f'the record has no superuser, engine {lakehouse.engine!r} has no fixed one, and '
+            + ('a customer record inherits none' if customer
+               else 'the tenant default has none either')
+        )
+    catalog = lakehouse.catalog or {}
+    return DatabaseConfig(
+        lakehouse_id=lakehouse.id,
+        hostname=hostname,
+        # None for an engine whose URL takes no port (Snowflake); `URL.create` accepts it.
+        port=coordinates.get('port'),
+        superuser=superuser,
+        password=password,
+        # `engine` and `system` range over the same words — starrocks, databend, snowflake,
+        # databricks — and the chart renders `system: {{ externalDatabase.protocol }}`.
+        system=lakehouse.engine,
+        # As recorded, including ''. The in-cluster engines render an empty database name, so
+        # substituting 'plaid_data' would be this library guessing.
+        database_name=coordinates.get('database_name') or '',
+        # Compute rides the DSN query string. Empty is absent, as in cp-rest's
+        # `missing_connection_fields`; forwarding it renders `?role=`.
+        query_params={k: v for k, v in (lakehouse.compute or {}).items() if v},
+        # `.get(k, default)` and not truthiness: an operator setting these to '' is saying
+        # this lakehouse has no Iceberg half, and that has to survive.
+        iceberg_catalog=catalog.get('iceberg_catalog', inherited.iceberg_catalog),
+        lakekeeper_url=catalog.get('lakekeeper_url', inherited.lakekeeper_url),
+        lakekeeper_warehouse=catalog.get('lakekeeper_warehouse', inherited.lakekeeper_warehouse),
+        # `LakehouseCatalog` has no token field, so inheritance is the only source.
+        lakekeeper_token=inherited.lakekeeper_token,
+        # cloud_url is deliberately absent: one shared-Postgres catalog per tenant, read from
+        # `cfg.database` by `orm.build_shared_dsns`, never a lakehouse coordinate.
+    )
+
+
+def is_customer_lakehouse(lakehouse: LakehouseConfig) -> bool:
+    """Whether the customer owns this warehouse, rather than PlaidCloud provisioning it."""
+    return bool(_CUSTOMER_CREDENTIAL_REF.fullmatch(lakehouse.credential_ref or ''))
 
 
 class EnvironmentConfig(NamedTuple):
@@ -259,12 +414,33 @@ class PlaidConfig:
 
         Empty on every tenant whose values file predates the render — an absent collection is
         not an error, it is a tenant that has not been republished yet.
+
+        Undeclared keys are dropped rather than raised on, so a values render can land ahead
+        of a library bump without a TypeError in every plaid pod (the rollout order
+        `test_extra_keys_ignored` pins). But the drop is LOGGED, once per record-and-key-set:
+        this is a property that plaid re-reads on every project resolution, and a per-read
+        warning floods the very window it exists to report. Silence is what let `disabled` and
+        `superuser` disappear here; a flood is the same as silence.
+
+        Lakehouse records only — every other block drops undeclared keys by design
+        (`database:` carries `lakehouses` and `default_lakehouse_id`, which `DatabaseConfig`
+        is supposed to filter).
         """
-        db_config = self.cfg.get('database') or {}
-        return [
-            LakehouseConfig(**{k: v for k, v in lakehouse.items() if k in LakehouseConfig._fields})
-            for lakehouse in db_config.get('lakehouses') or []
-        ]
+        lakehouses = []
+        for record in (self.cfg.get('database') or {}).get('lakehouses') or []:
+            undeclared = sorted(set(record) - set(LakehouseConfig._fields))
+            seen = (record.get('id', ''), tuple(undeclared))
+            if undeclared and seen not in _WARNED_UNDECLARED:
+                _WARNED_UNDECLARED.add(seen)
+                logger.warning(
+                    'Lakehouse %r carries %s, which this plaidcloud-config does not declare '
+                    'and is dropping. Upgrade the library before relying on them.',
+                    seen[0], ', '.join(undeclared),
+                )
+            lakehouses.append(
+                LakehouseConfig(**{k: v for k, v in record.items() if k in LakehouseConfig._fields})
+            )
+        return lakehouses
 
     @property
     def default_lakehouse_id(self) -> str:

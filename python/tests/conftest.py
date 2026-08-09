@@ -245,6 +245,15 @@ def empty_config(tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def fresh_warnings(monkeypatch):
+    """Give the test an empty 'already reported this undeclared key' set.
+
+    `PlaidConfig.lakehouses` warns once per (id, keys) for the life of the process, so without
+    this a test's warning depends on whether an earlier test already tripped it."""
+    monkeypatch.setattr(_get_config_module(), "_WARNED_UNDECLARED", set())
+
+
+@pytest.fixture
 def missing_config(monkeypatch):
     """Return a PlaidConfig when no config file exists."""
     config_mod = _get_config_module()

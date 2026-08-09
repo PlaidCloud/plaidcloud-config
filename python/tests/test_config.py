@@ -10,6 +10,7 @@ __email__ = "garrett@plaidcloud.com"
 
 """Tests for plaidcloud.config.config module."""
 import logging
+import re
 import sys
 import yaml
 import pytest
@@ -674,6 +675,41 @@ CUSTOMER_LAKEHOUSE_CFG = {
 }
 
 
+# The OTHER customer engine, and the one the superuser rule turns on. cp-rest's
+# `_REQUIRED_CONNECTION_FIELDS['databricks']` is ('hostname', 'http_path') — NO superuser —
+# because the only correct principal is the literal `token` and `superuser` is rendered into
+# the Git-committed values file, so demanding it invites an operator to paste the PAT there.
+DATABRICKS_ID = "lh-fedcba9876543210fedcba9876543210"
+DATABRICKS_LAKEHOUSE_CFG = {
+    "database": {
+        "hostname": "starrocks-fe-service",
+        "port": 9030,
+        "superuser": "root",
+        "password": "tenant-pw",
+        "system": "starrocks",
+        "lakekeeper_url": "http://plaid-tenant-lakekeeper:8181",
+        "lakekeeper_token": "tenant-token",
+        "default_lakehouse_id": DATABRICKS_ID,
+        "lakehouses": [
+            {
+                "id": DATABRICKS_ID,
+                "name": "Customer Databricks",
+                "engine": "databricks",
+                "status": "active",
+                "disabled": False,
+                "superuser": "",
+                "coordinates": {"hostname": "acme.cloud.databricks.com", "port": 443,
+                                "database_name": ""},
+                "catalog": None,
+                "compute": {"warehouse": None, "role": None,
+                            "http_path": "/sql/1.0/warehouses/abc123"},
+                "credential_ref": f"lakehouse_{DATABRICKS_ID}_password",
+            },
+        ],
+    }
+}
+
+
 def _config_from(tmp_path, monkeypatch, cfg):
     config_path = tmp_path / "cfg.yaml"
     config_path.write_text(yaml.dump(cfg))
@@ -852,19 +888,94 @@ class TestResolveLakehouse:
         lakehouse, = _config_from(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG).lakehouses
         assert config_mod.is_customer_lakehouse(lakehouse) is True
 
+    @pytest.mark.parametrize("ref", [
+        "lakehouse_admin_password",                     # the legacy provisioned key
+        "lakehouse_user_alice_password",                # a per-user key, id would be 'user_alice'
+        "lakehouse_lh-notrealhex_password",             # right prefix, wrong body
+        "lakehouse_lh-0123456789ABCDEF0123456789ABCDEF_password",   # uppercase hex
+        "lakehouse_lh-0123456789abcdef0123456789abcde_password",    # 31 hex, not 32
+        f"lakehouse_{CUSTOMER_ID}_password ",           # trailing whitespace
+        f"lakehouse_{CUSTOMER_ID}_password\n",          # trailing newline: `$` matches before it
+        f"x lakehouse_{CUSTOMER_ID}_password",          # embedded, not the whole key
+        "",
+    ])
+    def test_only_a_minted_credential_ref_is_a_customer_lakehouse(self, ref):
+        # cp-rest calls this anchoring load-bearing: a loose `lakehouse_.*_password` also
+        # matches the legacy shared key and every per-user key, which would flip the tenant's
+        # own warehouse to "customer" and strip its inheritance.
+        assert config_mod.is_customer_lakehouse(
+            config_mod.LakehouseConfig(id="x", credential_ref=ref)) is False
+
+    def test_the_credential_ref_pattern_is_cp_rests_verbatim(self):
+        # This is a SECOND copy of `lakehouse_tools._CREDENTIAL_REF_RE` with no shared source,
+        # and cp-rest documents the exact anchoring as load-bearing. Pinned as a string so any
+        # edit here is deliberate and gets checked against the other copy — including edits
+        # that are behaviourally equivalent under `fullmatch` and would otherwise slip through.
+        pattern = getattr(config_mod, "_CUSTOMER_CREDENTIAL_REF")
+        assert pattern.pattern == r'^lakehouse_lh-[0-9a-f]{32}_password$'
+        assert pattern.flags & re.IGNORECASE == 0
+
     def test_a_customer_record_does_not_inherit_the_tenant_lakekeeper(self, tmp_path, monkeypatch):
         # Falling back to the tenant's own StarRocks coordinates for a warehouse PlaidCloud
         # does not run is the "answers for the wrong warehouse" failure.
         resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
-        untouched = DatabaseConfig(hostname="", port=None, superuser="", password="", system="")
-        assert resolved.lakekeeper_url == untouched.lakekeeper_url
-        assert resolved.iceberg_catalog == untouched.iceberg_catalog
+        assert resolved.lakekeeper_url != "http://plaid-tenant-lakekeeper:8181"
         assert resolved.lakekeeper_token == ""
 
-    def test_a_customer_record_with_no_superuser_is_refused(self, tmp_path, monkeypatch):
-        # Loud, not defaulted: there is no tenant principal that means anything on a
-        # warehouse the customer owns.
-        with pytest.raises(ValueError, match="no superuser"):
+    def test_a_customer_catalog_is_absent_not_a_fabricated_default(self, tmp_path, monkeypatch):
+        # `catalog: None` is cp-rest's default and its only way to say "no catalog".
+        # DatabaseConfig's class defaults are NOT that: `http://lakekeeper:8181` names a
+        # Service that exists in no tenant namespace, so serving it here invents a coordinate.
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
+        assert resolved.lakekeeper_url == ""
+        assert resolved.iceberg_catalog == ""
+        assert resolved.lakekeeper_warehouse == ""
+
+    def test_a_customer_snowflake_keeps_its_own_drivername(self, tmp_path, monkeypatch):
+        # `system` selects the SQLAlchemy driver. The tenant default is 'starrocks' here, so
+        # sourcing it from there instead of the record would build `starrocks://` against a
+        # Snowflake account with nothing to show for it.
+        parsed = _config_from(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG)
+        assert parsed.database.system == "starrocks"
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG, disabled=False)
+        assert resolved.system == "snowflake"
+
+    # --- Databricks: an engine that takes no configured principal ------------------------
+
+    def test_a_databricks_record_needs_no_recorded_superuser(self, tmp_path, monkeypatch):
+        # cp-rest's `_REQUIRED_CONNECTION_FIELDS['databricks']` is ('hostname', 'http_path').
+        # Refusing a blank superuser here would refuse a shape the control plane accepts and
+        # this story exists to support.
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG)
+        assert resolved.superuser == "token"
+
+    def test_a_databricks_record_keeps_its_own_drivername(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG)
+        assert resolved.system == "databricks"
+        assert resolved.hostname == "acme.cloud.databricks.com"
+
+    def test_a_databricks_http_path_rides_query_params(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG)
+        assert resolved.query_params == {"http_path": "/sql/1.0/warehouses/abc123"}
+
+    def test_the_engine_principal_beats_an_inherited_one(self, tmp_path, monkeypatch):
+        # Precedence between the engine constant and inheritance is only observable when BOTH
+        # are populated, which needs a Databricks record carrying the legacy (provisioned)
+        # credential ref — reachable only by hand-editing a values file, but that is exactly
+        # where a wrong answer would go unnoticed. There is no `root` account on a Databricks
+        # warehouse, so the constant has to win.
+        parsed = _config_from(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG)
+        assert parsed.database.superuser == "root"
+        lakehouse, = parsed.lakehouses
+        hand_edited = lakehouse._replace(credential_ref="lakehouse_admin_password")
+        assert config_mod.is_customer_lakehouse(hand_edited) is False
+        resolved = config_mod.resolve_lakehouse(hand_edited, parsed.database, "pw")
+        assert resolved.superuser == "token"
+
+    def test_a_customer_snowflake_with_no_superuser_is_refused(self, tmp_path, monkeypatch):
+        # Snowflake DOES require a principal (`_REQUIRED_CONNECTION_FIELDS`), and there is no
+        # tenant principal that means anything on a warehouse the customer owns.
+        with pytest.raises(ValueError, match="no connection principal"):
             self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG,
                           disabled=False, superuser="")
 
@@ -1002,3 +1113,10 @@ class TestResolveLakehouse:
     def test_a_null_coordinates_block_is_refused(self, tmp_path, monkeypatch):
         with pytest.raises(ValueError, match="names no warehouse"):
             self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, coordinates=None)
+
+    def test_a_blank_hostname_is_refused(self, tmp_path, monkeypatch):
+        # Whitespace is not a host. Unstripped it passes the emptiness check and renders
+        # `starrocks://root:pw@%20%20%20:9030/`.
+        with pytest.raises(ValueError, match="names no warehouse"):
+            self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                          coordinates={"hostname": "   ", "port": 9030, "database_name": ""})

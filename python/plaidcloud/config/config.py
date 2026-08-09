@@ -114,12 +114,34 @@ class LakehouseConfig(NamedTuple):
 #: namespace. Anything else is PlaidCloud-provisioned. Keyed on the credential ref rather than
 #: `engine` because that is what cp-rest's own `reconcile_default_lakehouse` keys on; an engine
 #: test would misfile the first customer StarRocks.
+#:
+#: The `lh-` plus 32 lowercase hex anchoring is cp-rest's and is load-bearing there: a looser
+#: `lakehouse_.*_password` also matches `lakehouse_admin_password` and every
+#: `lakehouse_user_<name>_password`. This is a SECOND copy of that pattern with no shared
+#: source — if cp-rest's `mint_lakehouse_id` shape ever changes, both must move together.
+#:
+#: It FAILS OPEN, deliberately: anything unrecognised (absent, empty, legacy, uppercase hex,
+#: hand-edited) reads as PlaidCloud-provisioned and inherits the tenant block. That is the
+#: right way round for the shapes cp-rest emits, where the only non-matching ref is the legacy
+#: provisioned one. On a hand-edited values file it means a malformed customer ref inherits
+#: the tenant's superuser and Lakekeeper token; cp-rest cannot produce that, and failing the
+#: other way would refuse every real provisioned record.
 _CUSTOMER_CREDENTIAL_REF = re.compile(r'^lakehouse_lh-[0-9a-f]{32}_password$')
 
-#: What a customer record inherits: nothing. The empty `superuser` is what makes a missing
-#: principal raise, and the class-default Iceberg coordinates are right because a warehouse
-#: PlaidCloud does not run has no tenant Lakekeeper.
-_NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="")
+#: Engines whose connection principal is a fixed constant, not a configured account. Databricks
+#: authenticates with a PAT as the password against the literal user `token` (plaid's own URLs
+#: are `databricks://token:<pat>@host`), so cp-rest deliberately omits `superuser` from its
+#: required set — the field is rendered into the Git-committed values file, and demanding it
+#: invites an operator to paste the PAT there.
+_FIXED_PRINCIPAL = {'databricks': 'token'}
+
+#: What a customer record inherits: nothing. The empty `superuser` is what makes a genuinely
+#: missing principal raise, and the Iceberg coordinates are EMPTY rather than
+#: `DatabaseConfig`'s class defaults — those name `http://lakekeeper:8181`, a Service that
+#: exists in no tenant namespace, so handing it to a customer warehouse would be a fabricated
+#: coordinate rather than an absent one.
+_NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="",
+                                 iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="")
 
 
 def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig,
@@ -149,19 +171,23 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
             f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) is disabled and cannot be connected to'
         )
     coordinates = lakehouse.coordinates or {}
-    hostname = coordinates.get('hostname') or ''
+    hostname = (coordinates.get('hostname') or '').strip()
     if not lakehouse.engine or not hostname:
         raise ValueError(
             f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) names no warehouse: '
             f'engine={lakehouse.engine!r}, coordinates.hostname={hostname!r}'
         )
 
-    inherited = _NO_INHERITANCE if is_customer_lakehouse(lakehouse) else tenant_default
-    superuser = lakehouse.superuser or inherited.superuser
+    customer = is_customer_lakehouse(lakehouse)
+    inherited = _NO_INHERITANCE if customer else tenant_default
+    superuser = (lakehouse.superuser or _FIXED_PRINCIPAL.get(lakehouse.engine)
+                 or inherited.superuser)
     if not superuser:
         raise ValueError(
-            f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) has no superuser and is not '
-            'PlaidCloud-provisioned, so there is no tenant default to fall back to'
+            f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) names no connection principal: '
+            f'the record has no superuser, engine {lakehouse.engine!r} has no fixed one, and '
+            + ('a customer record inherits none' if customer
+               else 'the tenant default has none either')
         )
     catalog = lakehouse.catalog or {}
     return DatabaseConfig(

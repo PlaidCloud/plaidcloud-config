@@ -958,6 +958,22 @@ class TestResolveLakehouse:
         resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG)
         assert resolved.query_params == {"http_path": "/sql/1.0/warehouses/abc123"}
 
+    def test_a_recorded_superuser_beats_the_engine_constant(self, tmp_path, monkeypatch):
+        # THE precedence that makes `_FIXED_PRINCIPAL` a default rather than a rule. `token` is
+        # the PAT convention, but Databricks OAuth M2M authenticates a service principal by
+        # CLIENT ID, and the record's own `superuser` is the only escape hatch such a record
+        # has. A "simplification" putting the constant first — "Databricks is always token" —
+        # would silently reroute every one of them.
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG,
+                                 superuser="7a1b2c3d-client-id")
+        assert resolved.superuser == "7a1b2c3d-client-id"
+
+    def test_the_fixed_principal_table_is_databricks_only(self):
+        # Membership is the whole behaviour of the table: an entry for an engine that DOES take
+        # a configured account would mask a missing superuser instead of raising, and would
+        # override the tenant default on every provisioned record of that engine.
+        assert getattr(config_mod, "_FIXED_PRINCIPAL") == {"databricks": "token"}
+
     def test_the_engine_principal_beats_an_inherited_one(self, tmp_path, monkeypatch):
         # Precedence between the engine constant and inheritance is only observable when BOTH
         # are populated, which needs a Databricks record carrying the legacy (provisioned)
@@ -1114,9 +1130,31 @@ class TestResolveLakehouse:
         with pytest.raises(ValueError, match="names no warehouse"):
             self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG, coordinates=None)
 
-    def test_a_blank_hostname_is_refused(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("blank", ["   ", "\t", "\n", " \t "])
+    def test_a_blank_hostname_is_refused(self, tmp_path, monkeypatch, blank):
         # Whitespace is not a host. Unstripped it passes the emptiness check and renders
-        # `starrocks://root:pw@%20%20%20:9030/`.
+        # `starrocks://root:pw@%20%20%20:9030/`. Tabs too — `.strip(' ')` would let one past.
         with pytest.raises(ValueError, match="names no warehouse"):
             self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
-                          coordinates={"hostname": "   ", "port": 9030, "database_name": ""})
+                          coordinates={"hostname": blank, "port": 9030, "database_name": ""})
+
+    def test_the_stored_hostname_is_stripped(self, tmp_path, monkeypatch):
+        # Guarding only the refusal leaves the padding in the DSN, where it percent-encodes
+        # into the host and resolves nowhere.
+        resolved = self._resolve(
+            tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+            coordinates={"hostname": " \tstarrocks-fe-service \n", "port": 9030,
+                         "database_name": ""})
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_the_refusal_names_which_side_had_no_principal(self, tmp_path, monkeypatch):
+        # The two branches say opposite things about where to look; swapping them sends an
+        # operator to the wrong file.
+        with pytest.raises(ValueError, match="a customer record inherits none"):
+            self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG,
+                          disabled=False, superuser="")
+        parsed = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
+        lakehouse, = parsed.lakehouses
+        with pytest.raises(ValueError, match="the tenant default has none either"):
+            config_mod.resolve_lakehouse(
+                lakehouse, parsed.database._replace(superuser=""), "pw")

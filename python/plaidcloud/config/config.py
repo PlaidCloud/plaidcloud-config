@@ -128,18 +128,28 @@ class LakehouseConfig(NamedTuple):
 #: other way would refuse every real provisioned record.
 _CUSTOMER_CREDENTIAL_REF = re.compile(r'^lakehouse_lh-[0-9a-f]{32}_password$')
 
-#: Engines whose connection principal is a fixed constant, not a configured account. Databricks
-#: authenticates with a PAT as the password against the literal user `token` (plaid's own URLs
-#: are `databricks://token:<pat>@host`), so cp-rest deliberately omits `superuser` from its
-#: required set — the field is rendered into the Git-committed values file, and demanding it
-#: invites an operator to paste the PAT there.
+#: The principal to use when an engine's record carries none, for engines that conventionally
+#: take a constant rather than a configured account. cp-rest omits `superuser` from Databricks'
+#: required set on purpose — the field is rendered into the Git-committed values file, so
+#: demanding it invites an operator to paste the PAT there.
+#:
+#: `token` is the PAT convention, corroborated by cp-rest's comment and by plaid's own fixtures
+#: (`databricks://token:x@host:443/default`). It is NOT universal: Databricks OAuth M2M
+#: authenticates a service principal by client id, and plaid's own customer-connection builder
+#: (`connection.py` `_form_connection_string`) takes the username from `db_user` rather than
+#: hardcoding anything. So this is a DEFAULT, not a rule — a record that names a `superuser`
+#: always wins, which is the only escape hatch a non-PAT auth mode has.
 _FIXED_PRINCIPAL = {'databricks': 'token'}
 
 #: What a customer record inherits: nothing. The empty `superuser` is what makes a genuinely
 #: missing principal raise, and the Iceberg coordinates are EMPTY rather than
 #: `DatabaseConfig`'s class defaults — those name `http://lakekeeper:8181`, a Service that
-#: exists in no tenant namespace, so handing it to a customer warehouse would be a fabricated
-#: coordinate rather than an absent one.
+#: exists in no tenant namespace. Empty is also what plaid reads as "no Iceberg half": a
+#: truthy URL sends `drop_schema` and the `getattr(db, 'LAKEKEEPER_URL', None)` probes down
+#: the Iceberg branch, so a fabricated default would aim them at a Lakekeeper this warehouse
+#: has nothing to do with. All three are spelled out even though `lakekeeper_warehouse`'s
+#: class default is already '' — so that a change to `DatabaseConfig`'s defaults cannot
+#: silently re-fabricate one of them.
 _NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="",
                                  iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="")
 

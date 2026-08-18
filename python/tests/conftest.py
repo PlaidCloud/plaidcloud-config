@@ -96,6 +96,7 @@ SAMPLE_CONFIG = {
             "limit.builders": 25,
             "set.auth_methods": ["google", "ms", "saml"],
         },
+        "onboarding_mode": "managed",
     },
     "services": {
         "auth": "http://auth:8080",

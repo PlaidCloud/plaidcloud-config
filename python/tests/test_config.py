@@ -275,6 +275,7 @@ class TestTenantConfig:
             "limit.builders": 25,
             "set.auth_methods": ["google", "ms", "saml"],
         }
+        assert t.onboarding_mode == "managed"
 
     def test_defaults(self, missing_config):
         t = missing_config.tenant
@@ -290,6 +291,7 @@ class TestTenantConfig:
         assert t.client_bucket_serving is False
         assert t.workflow_run_history == {}
         assert t.entitlements == {}
+        assert t.onboarding_mode == "self_serve"
 
 
 # ---------------------------------------------------------------------------

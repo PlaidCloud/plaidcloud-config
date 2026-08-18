@@ -288,6 +288,10 @@ class TenantConfig(NamedTuple):
     splash_screen_logo_url: str = "resource/plaid/images/logo-login.png"
     superset_logo_url: str = "/static/assets/images/plaidcloud.png"
     workflow_run_history: dict = {}
+    # First-run onboarding UX mode (self_serve | managed), resolved by cp-rest and delivered
+    # via tenantMeta.onboarding_mode. Defaults to self_serve so a tenant whose config predates
+    # the key reads the guided path rather than empty-states. New-user onboarding epic (25185).
+    onboarding_mode: str = "self_serve"
     entitlements: dict = {}
     stripe_api_key: str = ""
     stripe_tax_key: str = ""

@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 #: because the warning describes the config file, which does not change under a running pod.
 _WARNED_UNDECLARED = set()
 
+#: (lakehouse id, field name) already reported by `resolve_lakehouse` for a non-dict record
+#: field. Process-wide for the same reason: the malformed record persists until cp-rest is
+#: fixed (sc-26358), and a per-resolution warning would flood the very window it exists to report.
+_WARNED_NONDICT_FIELD = set()
+
 
 def _apply_env_overrides(cfg: dict) -> None:
     marker = ENV_OVERRIDE_PREFIX + ENV_OVERRIDE_SEP
@@ -155,6 +160,27 @@ _NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password=
                                  lakekeeper_token="")
 
 
+def _dict_field(lakehouse: LakehouseConfig, field_name: str, blank_note: str = '') -> dict:
+    """A record field that must be a dict; coerce a non-dict (cp-rest render bug sc-26358)
+    to {} and warn once, rather than let `.get()`/`.items()` AttributeError deep in a caller.
+
+    `blank_note` appends a record-specific consequence to the message. Only a truthy non-dict
+    warns — '', 0, None coerce silently, exactly as the prior `field or {}` did.
+    """
+    value = getattr(lakehouse, field_name)
+    if isinstance(value, dict):
+        return value
+    if value:
+        key = (lakehouse.id, field_name)
+        if key not in _WARNED_NONDICT_FIELD:
+            _WARNED_NONDICT_FIELD.add(key)
+            logger.warning(
+                'lakehouse %r (%r) has a non-dict %s %r (cp-rest render bug sc-26358); '
+                'treating it as absent%s', lakehouse.id, lakehouse.name, field_name, value,
+                blank_note)
+    return {}
+
+
 def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig,
                       password: str) -> DatabaseConfig:
     """The connectable form of one lakehouse, for `orm.build_lakehouse_dsns`.
@@ -181,7 +207,7 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         raise ValueError(
             f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) is disabled and cannot be connected to'
         )
-    coordinates = lakehouse.coordinates or {}
+    coordinates = _dict_field(lakehouse, 'coordinates')
     hostname = (coordinates.get('hostname') or '').strip()
     if not lakehouse.engine or not hostname:
         raise ValueError(
@@ -200,7 +226,11 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
             + ('a customer record inherits none' if customer
                else 'the tenant default has none either')
         )
-    catalog = lakehouse.catalog or {}
+    catalog = _dict_field(lakehouse, 'catalog', blank_note=(
+        ' — customer record inherits no fallback, its Iceberg/Lakekeeper config resolves BLANK'
+        if customer else ''))
+    compute = _dict_field(lakehouse, 'compute',
+                          blank_note=' — connection falls back to the account default role/warehouse')
     return DatabaseConfig(
         lakehouse_id=lakehouse.id,
         hostname=hostname,
@@ -216,7 +246,7 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         database_name=coordinates.get('database_name') or '',
         # Compute rides the DSN query string. Empty is absent, as in cp-rest's
         # `missing_connection_fields`; forwarding it renders `?role=`.
-        query_params={k: v for k, v in (lakehouse.compute or {}).items() if v},
+        query_params={k: v for k, v in compute.items() if v},
         # `.get(k, default)` and not truthiness: an operator setting these to '' is saying
         # this lakehouse has no Iceberg half, and that has to survive.
         iceberg_catalog=catalog.get('iceberg_catalog', inherited.iceberg_catalog),

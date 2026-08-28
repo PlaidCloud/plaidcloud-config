@@ -252,6 +252,7 @@ def fresh_warnings(monkeypatch):
     `PlaidConfig.lakehouses` warns once per (id, keys) for the life of the process, so without
     this a test's warning depends on whether an earlier test already tripped it."""
     monkeypatch.setattr(_get_config_module(), "_WARNED_UNDECLARED", set())
+    monkeypatch.setattr(_get_config_module(), "_WARNED_NONDICT_FIELD", set())
 
 
 @pytest.fixture

@@ -941,6 +941,35 @@ class TestResolveLakehouse:
         lakehouse, = _config_from(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG).lakehouses
         assert config_mod.is_customer_lakehouse(lakehouse) is False
 
+    # --- a non-dict field (cp-rest render bug sc-26358) coerces instead of AttributeError ---
+
+    def test_a_string_catalog_falls_back_instead_of_crashing(self, tmp_path, monkeypatch):
+        # cp-rest can render a top-level `catalog` as a bare string; the old `catalog or {}`
+        # then hit `.get()` and AttributeError'd, 500-ing every project create tenant-wide.
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                                 catalog="plaid-test-20260823")
+        assert resolved.iceberg_catalog == "tenant_catalog"  # inherited, not raised
+
+    def test_a_string_compute_falls_back_instead_of_crashing(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                                 compute="some-string")
+        assert resolved.query_params == {}
+
+    def test_a_string_coordinates_is_refused_not_crashed(self, tmp_path, monkeypatch):
+        # coordinates -> {} -> empty hostname -> the existing "names no warehouse" ValueError,
+        # NOT AttributeError.
+        with pytest.raises(ValueError, match="names no warehouse"):
+            self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
+                          coordinates="somehost")
+
+    def test_a_customer_string_catalog_degrades_blank_not_crashes(self, tmp_path, monkeypatch):
+        # A CUSTOMER record inherits nothing: a clobbered catalog resolves BLANK (not raised,
+        # not inherited) -- degrade, never a tenant-wide crash. `disabled=False` because
+        # CUSTOMER_LAKEHOUSE_CFG bakes in disabled:True (would raise before the catalog line).
+        resolved = self._resolve(tmp_path, monkeypatch, CUSTOMER_LAKEHOUSE_CFG,
+                                 catalog="plaid-test-20260823", disabled=False)
+        assert resolved.iceberg_catalog == ""
+
     # --- a customer record inherits nothing --------------------------------------------
 
     def test_a_customer_record_is_recognised(self, tmp_path, monkeypatch):

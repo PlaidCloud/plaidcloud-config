@@ -276,6 +276,11 @@ class TestTenantConfig:
             "set.auth_methods": ["google", "ms", "saml"],
         }
         assert t.onboarding_mode == "managed"
+        assert t.erp_sod == {
+            "required": True,
+            "threshold_minor_units": 500000,
+            "functional_currency": "USD",
+        }
 
     def test_defaults(self, missing_config):
         t = missing_config.tenant
@@ -292,6 +297,7 @@ class TestTenantConfig:
         assert t.workflow_run_history == {}
         assert t.entitlements == {}
         assert t.onboarding_mode == "self_serve"
+        assert t.erp_sod is None
 
 
 # ---------------------------------------------------------------------------

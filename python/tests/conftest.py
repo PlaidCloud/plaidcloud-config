@@ -97,6 +97,11 @@ SAMPLE_CONFIG = {
             "set.auth_methods": ["google", "ms", "saml"],
         },
         "onboarding_mode": "managed",
+        "erp_sod": {
+            "required": True,
+            "threshold_minor_units": 500000,
+            "functional_currency": "USD",
+        },
     },
     "services": {
         "auth": "http://auth:8080",

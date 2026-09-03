@@ -323,6 +323,14 @@ class TenantConfig(NamedTuple):
     # the key reads the guided path rather than empty-states. New-user onboarding epic (25185).
     onboarding_mode: str = "self_serve"
     entitlements: dict = {}
+    # Separation-of-Duties policy for the ERP posting register (sc-26926): plaidadmin-gated
+    # tenant PUT -> tenantMeta.erp_sod -> here. Shape: {required, threshold_minor_units|null,
+    # functional_currency}. `None` is a DISTINCT state from a present-but-off policy dict —
+    # plaid's resolver's fail-closed precedence table depends on telling "no config set"
+    # apart from "config explicitly set". Do not default this to {} the way
+    # entitlements/feature flags do; callers must read it with getattr for forward
+    # compatibility with a plaid deploy older than this field.
+    erp_sod: dict | None = None
     stripe_api_key: str = ""
     stripe_tax_key: str = ""
     stripe_webhook_secret: str = ""

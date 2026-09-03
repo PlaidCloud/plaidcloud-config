@@ -374,6 +374,10 @@ class SupersetConfig(NamedTuple):
     db_url: str = ""
     use_events_handler: bool = True
 
+class ErpPostingLedgerConfig(NamedTuple):
+    db_url: str = ""
+
+
 class AIChatHistoryConfig(NamedTuple):
     langchain_db_url: str = ""
     conversation_db_url: str = ""
@@ -598,6 +602,11 @@ class PlaidConfig:
     def ai_chat_history(self) -> AIChatHistoryConfig:
         history_config = self.cfg.get('ai_chat_history', {})
         return AIChatHistoryConfig(**{k: v for k, v in history_config.items() if k in AIChatHistoryConfig._fields})
+
+    @property
+    def erp_posting_ledger(self) -> ErpPostingLedgerConfig:
+        erp_posting_ledger_config = self.cfg.get('erp_posting_ledger', {})
+        return ErpPostingLedgerConfig(**{k: v for k, v in erp_posting_ledger_config.items() if k in ErpPostingLedgerConfig._fields})
 
     @property
     def stripe(self) -> StripeConfig:

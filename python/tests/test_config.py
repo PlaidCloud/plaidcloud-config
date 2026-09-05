@@ -1161,6 +1161,79 @@ class TestResolveLakehouse:
             compute={"warehouse": "PLAID_WH", "role": "", "http_path": None})
         assert resolved.query_params == {"warehouse": "PLAID_WH"}
 
+    def test_same_engine_query_params_are_inherited(self, tmp_path, monkeypatch):
+        # sc-26511: a provisioned record whose engine matches `tenant_default.system`
+        # re-describes the SAME warehouse `cfg.database` already connects to, so the tenant's
+        # own query params (e.g. postgres's `sslmode`) are meaningful for it too and must
+        # carry over — this is the chokepoint sc-26510 patched around on the `plaid` side;
+        # this is the root-cause fix.
+        cfg = {
+            "database": {
+                "hostname": "pg-host", "port": 5432, "superuser": "root",
+                "password": "tenant-pw", "system": "postgresql",
+                "query_params": {"sslmode": "require"},
+                "default_lakehouse_id": "lh-pg",
+                "lakehouses": [{
+                    "id": "lh-pg", "name": "Postgres", "engine": "postgresql",
+                    "status": "active",
+                    "coordinates": {"hostname": "pg-host2", "port": 5432,
+                                    "database_name": ""},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.query_params == {"sslmode": "require"}
+
+    def test_cross_engine_query_params_are_not_inherited(self, tmp_path, monkeypatch):
+        # sc-26511: postgres's `sslmode=require` is a libpq value, not vocabulary Databend's
+        # (or StarRocks's) own same-named query key expects. A URL query key is untyped
+        # free-form text, so the target driver is not guaranteed to reject it -- it could
+        # silently accept and misinterpret it, which would be a silent TLS/security downgrade
+        # with no error to catch it. So a record whose engine DIFFERS from
+        # `tenant_default.system` inherits none of the tenant's query_params.
+        cfg = {
+            "database": {
+                "hostname": "pg-host", "port": 5432, "superuser": "root",
+                "password": "tenant-pw", "system": "postgresql",
+                "query_params": {"sslmode": "require"},
+                "default_lakehouse_id": "lh-db",
+                "lakehouses": [{
+                    "id": "lh-db", "name": "Databend", "engine": "databend",
+                    "status": "provisioning",
+                    "coordinates": {"hostname": "plaid-databend-query", "port": 8000,
+                                    "database_name": ""},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.query_params == {}
+
+    def test_compute_overrides_an_inherited_same_engine_param(self, tmp_path, monkeypatch):
+        # The record's own `compute` describes THIS lakehouse specifically and must win over
+        # whatever the tenant default merely stands in for.
+        cfg = {
+            "database": {
+                "hostname": "pg-host", "port": 5432, "superuser": "root",
+                "password": "tenant-pw", "system": "postgresql",
+                "query_params": {"sslmode": "require"},
+                "default_lakehouse_id": "lh-pg",
+                "lakehouses": [{
+                    "id": "lh-pg", "name": "Postgres", "engine": "postgresql",
+                    "status": "active",
+                    "coordinates": {"hostname": "pg-host2", "port": 5432,
+                                    "database_name": ""},
+                    "catalog": None, "compute": {"sslmode": "disable"},
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.query_params == {"sslmode": "disable"}
+
     def test_an_explicitly_empty_catalog_member_survives(self, tmp_path, monkeypatch):
         # An operator setting this to '' is saying "no Iceberg here". A truthiness filter
         # would discard that and substitute the tenant's catalog.

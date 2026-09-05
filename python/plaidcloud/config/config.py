@@ -231,6 +231,18 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         if customer else ''))
     compute = _dict_field(lakehouse, 'compute',
                           blank_note=' — connection falls back to the account default role/warehouse')
+    # sc-26511: `inherited.query_params` carries the OTHER engine's vocabulary whenever this
+    # record's engine differs from `inherited.system` (postgres's `sslmode=require` is a libpq
+    # value, not a value Databend's or StarRocks's own same-named query key expects) — a URL
+    # query key is untyped free-form text, so a target driver is not guaranteed to reject an
+    # unrecognized or mis-vocabularied value; it can silently accept and misinterpret it, which
+    # would be a silent TLS/security downgrade with no error to catch it. So it is inherited
+    # ONLY on a same-engine match. A customer record's base is `_NO_INHERITANCE`, whose `system`
+    # is '', so it never matches and a customer inherits nothing, same as every other field here.
+    same_engine_params = (
+        {k: v for k, v in inherited.query_params.items() if v}
+        if lakehouse.engine == inherited.system else {}
+    )
     return DatabaseConfig(
         lakehouse_id=lakehouse.id,
         hostname=hostname,
@@ -245,8 +257,10 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         # substituting 'plaid_data' would be this library guessing.
         database_name=coordinates.get('database_name') or '',
         # Compute rides the DSN query string. Empty is absent, as in cp-rest's
-        # `missing_connection_fields`; forwarding it renders `?role=`.
-        query_params={k: v for k, v in compute.items() if v},
+        # `missing_connection_fields`; forwarding it renders `?role=`. `same_engine_params`
+        # (above) comes first so `compute`'s own keys always win — they describe this
+        # lakehouse specifically, `inherited.query_params` only stands in for what compute omits.
+        query_params={**same_engine_params, **{k: v for k, v in compute.items() if v}},
         # `.get(k, default)` and not truthiness: an operator setting these to '' is saying
         # this lakehouse has no Iceberg half, and that has to survive.
         iceberg_catalog=catalog.get('iceberg_catalog', inherited.iceberg_catalog),

@@ -156,8 +156,8 @@ _FIXED_PRINCIPAL = {'databricks': 'token'}
 #: class default is already '' — so that a change to `DatabaseConfig`'s defaults cannot
 #: silently re-fabricate one of them.
 _NO_INHERITANCE = DatabaseConfig(hostname="", port=None, superuser="", password="", system="",
-                                 iceberg_catalog="", lakekeeper_url="", lakekeeper_warehouse="",
-                                 lakekeeper_token="")
+                                 database_name="", iceberg_catalog="", lakekeeper_url="",
+                                 lakekeeper_warehouse="", lakekeeper_token="")
 
 
 def _dict_field(lakehouse: LakehouseConfig, field_name: str, blank_note: str = '') -> dict:
@@ -196,6 +196,10 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
     `lakekeeper_url`, which names no Service in a tenant namespace. A customer record inherits
     nothing: falling back to the tenant's own warehouse for one PlaidCloud does not run is the
     "answers for the wrong warehouse while looking like it worked" failure.
+
+    `query_params` and `database_name` inherit only on an ENGINE MATCH, because a tenant default
+    speaks one engine's vocabulary and a record may be another's. Everything else here inherits
+    unconditionally, which is safe only because it is engine-neutral or recorded per lakehouse.
 
     `password` is an argument: the record names a Vault key, and nothing here resolves it.
 
@@ -243,6 +247,36 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         {k: v for k, v in inherited.query_params.items() if v}
         if lakehouse.engine == inherited.system else {}
     )
+    # sc-30626: the chart hardcodes `database_name: default` into `cfg.database` for a Databend
+    # tenant while cp-rest's `IN_CLUSTER_COORDINATES` records '' on the very record that
+    # re-describes that same warehouse — so a provisioned Databend record resolved to a
+    # database_name the tenant default disagrees with. `database_name` is part of
+    # `lakehouse_identity`, which is how plaid tells two of a tenant's warehouses apart, so the
+    # two spellings of ONE warehouse read as two: `_transfer_project_table_data` refused every
+    # cross-project copy on bugfixes2 the moment its projects were re-stamped off the
+    # pre-control-plane sentinel onto the minted record.
+    #
+    # Engine-guarded for the same reason `same_engine_params` is (sc-26511), and the guard is
+    # load-bearing rather than defensive here: on a Databend-primary tenant that has activated
+    # StarRocks, an unguarded inherit would hand the StarRocks record Databend's `default`, and
+    # `database_name` rides the DSN — that is a connection opened against a database named for
+    # the wrong engine, which is worse than the mismatch being fixed.
+    # `or ''` because the tenant block's own value may be None: the chart renders
+    # `database_name: {{ externalDatabase.databaseName }}`, which is an empty scalar (YAML null)
+    # for every in-cluster engine but Databend. Inheriting None would put None on a field typed
+    # `str` and hand the DSN builder a different type than the '' it has always seen.
+    #
+    # ⚠️ A BLANK database_name is a SENTINEL downstream, not just an absent coordinate:
+    # plaid's `bootstrap._check_create_one_tenant_database` returns early on it ("in the case of
+    # StarRocks, we don't specify a database because each project has its own DB"). Inheriting
+    # therefore makes "explicitly blank" unrepresentable for a same-engine provisioned record —
+    # acceptable only because the value being inherited is itself blank wherever that sentinel
+    # matters: every in-cluster engine but Databend renders an empty `databaseName`. It stops
+    # being true if a values file omits `databaseName` entirely and takes the tenants chart's
+    # `plaid_data` default, which is why cp-rest writes '' explicitly. See sc-30629.
+    same_engine_database_name = (
+        (inherited.database_name or '') if lakehouse.engine == inherited.system else ''
+    )
     return DatabaseConfig(
         lakehouse_id=lakehouse.id,
         hostname=hostname,
@@ -253,9 +287,10 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
         # `engine` and `system` range over the same words — starrocks, databend, snowflake,
         # databricks — and the chart renders `system: {{ externalDatabase.protocol }}`.
         system=lakehouse.engine,
-        # As recorded, including ''. The in-cluster engines render an empty database name, so
-        # substituting 'plaid_data' would be this library guessing.
-        database_name=coordinates.get('database_name') or '',
+        # As recorded; a blank one falls back to the same-engine tenant default (above) rather
+        # than to a literal, so this library still never guesses a name — it only agrees with
+        # the warehouse the record re-describes. Blank with no same-engine base stays blank.
+        database_name=coordinates.get('database_name') or same_engine_database_name,
         # Compute rides the DSN query string. Empty is absent, as in cp-rest's
         # `missing_connection_fields`; forwarding it renders `?role=`. `same_engine_params`
         # (above) comes first so `compute`'s own keys always win — they describe this

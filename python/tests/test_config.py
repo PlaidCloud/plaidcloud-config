@@ -626,6 +626,12 @@ MINTED_LAKEHOUSE_CFG = {
         "superuser": "root",
         "password": "tenant-pw",
         "system": "starrocks",
+        # None, because that is what the chart renders for every in-cluster engine but
+        # Databend: `database_name: {{ externalDatabase.databaseName }}` with an empty value is
+        # a bare key, which YAML loads as null. Omitting the key here instead would silently
+        # take DatabaseConfig's `plaid_data` class default — a shape no tenant carries, and one
+        # sc-30626 would then inherit. Keeping it None also puts the `or ''` coercion under test.
+        "database_name": None,
         "iceberg_catalog": "tenant_catalog",
         "lakekeeper_url": "http://plaid-tenant-lakekeeper:8181",
         "lakekeeper_warehouse": "tenant_wh",
@@ -1142,9 +1148,13 @@ class TestResolveLakehouse:
         assert resolved.database_name == "PLAID_DATA"
 
     def test_a_null_database_name_does_not_become_the_string_none(self, tmp_path, monkeypatch):
+        # Still '' after sc-30626: a blank now falls back to the same-engine tenant
+        # default, and this fixture's tenant states '' — so this keeps pinning the original
+        # contract, that a null coordinate never stringifies.
         resolved = self._resolve(
             tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG,
             coordinates={"hostname": "h", "port": 1, "database_name": None})
+        assert resolved.database_name != "None"
         assert resolved.database_name == ""
 
     def test_compute_becomes_query_params(self, tmp_path, monkeypatch):
@@ -1233,6 +1243,101 @@ class TestResolveLakehouse:
         }
         resolved = self._resolve(tmp_path, monkeypatch, cfg)
         assert resolved.query_params == {"sslmode": "disable"}
+
+    def test_a_blank_database_name_inherits_the_same_engine_tenant_default(self, tmp_path, monkeypatch):
+        # sc-30626, and this is the production shape exactly. The tenant chart hardcodes
+        # `database_name: default` into cfg.database for a Databend tenant
+        # (external-secret-tenant-config.yaml), while cp-rest's IN_CLUSTER_COORDINATES records
+        # '' on the very record that re-describes that same warehouse. `database_name` is a
+        # component of plaid's `lakehouse_identity`, so the two spellings of ONE warehouse read
+        # as two different warehouses, and `_transfer_project_table_data` refused every
+        # cross-project copy on bugfixes2 once its projects were re-stamped off the
+        # pre-control-plane sentinel onto the minted record.
+        cfg = {
+            "database": {
+                "hostname": "plaid-databend-query", "port": 8000, "superuser": "databend",
+                "password": "tenant-pw", "system": "databend",
+                "database_name": "default",
+                "default_lakehouse_id": "lh-v1",
+                "lakehouses": [{
+                    "id": "lh-v1", "name": "PlaidCloud Lakehouse v1", "engine": "databend",
+                    "status": "active",
+                    "coordinates": {"hostname": "plaid-databend-query", "port": 8000,
+                                    "database_name": ""},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.database_name == "default"
+
+    def test_a_blank_database_name_does_not_cross_engines(self, tmp_path, monkeypatch):
+        # The guard is load-bearing, not defensive: on a Databend-primary tenant that has
+        # activated StarRocks, inheriting unguarded would hand the StarRocks record Databend's
+        # `default`. database_name rides the DSN, so that is a connection opened against a
+        # database named for the wrong engine — worse than the mismatch being fixed.
+        cfg = {
+            "database": {
+                "hostname": "plaid-databend-query", "port": 8000, "superuser": "databend",
+                "password": "tenant-pw", "system": "databend",
+                "database_name": "default",
+                "default_lakehouse_id": "lh-v2",
+                "lakehouses": [{
+                    "id": "lh-v2", "name": "PlaidCloud Lakehouse v2", "engine": "starrocks",
+                    "status": "active",
+                    "coordinates": {"hostname": "starrocks-fe-service", "port": 9030,
+                                    "database_name": ""},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.database_name == ""
+
+    def test_a_recorded_database_name_wins_over_the_tenant_default(self, tmp_path, monkeypatch):
+        # The record describes THIS lakehouse; the tenant default only stands in for a blank.
+        cfg = {
+            "database": {
+                "hostname": "plaid-databend-query", "port": 8000, "superuser": "databend",
+                "password": "tenant-pw", "system": "databend",
+                "database_name": "default",
+                "default_lakehouse_id": "lh-v1",
+                "lakehouses": [{
+                    "id": "lh-v1", "name": "PlaidCloud Lakehouse v1", "engine": "databend",
+                    "status": "active",
+                    "coordinates": {"hostname": "plaid-databend-query", "port": 8000,
+                                    "database_name": "its_own"},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_admin_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.database_name == "its_own"
+
+    def test_a_customer_record_inherits_no_database_name(self, tmp_path, monkeypatch):
+        # A customer record's base is `_NO_INHERITANCE`, whose `system` is '' — it never
+        # matches, so a customer inherits nothing here, same as every other field.
+        cfg = {
+            "database": {
+                "hostname": "plaid-databend-query", "port": 8000, "superuser": "databend",
+                "password": "tenant-pw", "system": "databend",
+                "database_name": "default",
+                "default_lakehouse_id": "lh-cust",
+                "lakehouses": [{
+                    "id": "lh-cust", "name": "Customer Databend", "engine": "databend",
+                    "status": "active", "superuser": "someone",
+                    "coordinates": {"hostname": "customer-databend", "port": 8000,
+                                    "database_name": ""},
+                    "catalog": None, "compute": None,
+                    "credential_ref": "lakehouse_lh-00000000000000000000000000000000_password",
+                }],
+            }
+        }
+        resolved = self._resolve(tmp_path, monkeypatch, cfg)
+        assert resolved.database_name == ""
 
     def test_an_explicitly_empty_catalog_member_survives(self, tmp_path, monkeypatch):
         # An operator setting this to '' is saying "no Iceberg here". A truthiness filter

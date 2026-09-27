@@ -402,7 +402,6 @@ class ServiceConfig(NamedTuple):
     cron: str = "http://plaid-cron.plaid"
     data_explorer: str = "http://plaid-data-explorer.plaid"
     docs: str = "http://plaid-docs.plaid"
-    flashback: str = "http://plaid-flashback.plaid/rpc"
     monitor: str = "http://plaid-monitor.plaid"
     plaidxl: str = "http://plaid-plaidxl.plaid"
     rpc: str = "http://plaid-rpc.plaid/json-rpc"

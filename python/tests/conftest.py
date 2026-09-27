@@ -109,7 +109,6 @@ SAMPLE_CONFIG = {
         "cron": "http://cron:8080",
         "data_explorer": "http://data-explorer:8080",
         "docs": "http://docs:8080",
-        "flashback": "http://flashback:8080/rpc",
         "monitor": "http://monitor:8080",
         "plaidxl": "http://plaidxl:8080",
         "rpc": "http://rpc:8080/json-rpc",

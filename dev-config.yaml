@@ -54,7 +54,6 @@ services:
   cron: http://plaid-cron
   data_explorer: http://plaid-data-explorer
   docs: http://plaid-docs
-  flashback: http://plaid-flashback/rpc/
   monitor: http://plaid-monitor
   plaidxl: http://plaid-plaidxl
   rpc: http://plaid-rpc/json-rpc/

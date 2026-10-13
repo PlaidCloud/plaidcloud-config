@@ -443,11 +443,13 @@ class TestOAuthConfig:
         assert oa.quickbooks.client_id == "qb-id"
         assert oa.quickbooks.client_secret == "qb-secret"
         assert oa.paycor.client_id == "pc-id"
+        assert oa.gspread == OAuthServiceConfig("gs-id.apps.googleusercontent.com", "gs-secret")
 
     def test_defaults(self, missing_config):
         oa = missing_config.oauth
         assert oa.quickbooks == OAuthServiceConfig()
         assert oa.paycor == OAuthServiceConfig()
+        assert oa.gspread == OAuthServiceConfig()
 
     def test_extra_oauth_keys_ignored(self, tmp_path, monkeypatch):
         """Extra keys in OAuth sub-configs are filtered out."""

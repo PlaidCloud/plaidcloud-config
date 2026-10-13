@@ -459,6 +459,7 @@ class OAuthServiceConfig(NamedTuple):
 class OAuthConfig(NamedTuple):
     quickbooks: OAuthServiceConfig = OAuthServiceConfig()
     paycor: OAuthServiceConfig = OAuthServiceConfig()
+    xero: OAuthServiceConfig = OAuthServiceConfig()
     gspread: OAuthServiceConfig = OAuthServiceConfig()
 
 

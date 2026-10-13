@@ -157,6 +157,14 @@ SAMPLE_CONFIG = {
             "client_id": "pc-id",
             "client_secret": "pc-secret",
         },
+        "xero": {
+            "client_id": "xero-id",
+            "client_secret": "xero-secret",
+        },
+        "gspread": {
+            "client_id": "gs-id.apps.googleusercontent.com",
+            "client_secret": "gs-secret",
+        },
     },
     "plaidcloud-global": {
         "client_id": "global-id",

@@ -144,6 +144,11 @@ _CUSTOMER_CREDENTIAL_REF = re.compile(r'^lakehouse_lh-[0-9a-f]{32}_password$')
 #: (`connection.py` `_form_connection_string`) takes the username from `db_user` rather than
 #: hardcoding anything. So this is a DEFAULT, not a rule — a record that names a `superuser`
 #: always wins, which is the only escape hatch a non-PAT auth mode has.
+#:
+#: That escape hatch is now the M2M contract (epic sc-32667 S1): an `m2m$<client secret>`
+#: credential rides a record whose `superuser` is the service principal's client id, while a
+#: `pat$<token>` (or legacy, unprefixed) credential leaves it blank and lands here on `token`.
+#: The auth mode lives in the credential, so nothing in this library has to know it.
 _FIXED_PRINCIPAL = {'databricks': 'token'}
 
 #: What a customer record inherits: nothing. The empty `superuser` is what makes a genuinely

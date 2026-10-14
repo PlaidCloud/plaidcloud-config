@@ -1072,6 +1072,17 @@ class TestResolveLakehouse:
                                  superuser="7a1b2c3d-client-id")
         assert resolved.superuser == "7a1b2c3d-client-id"
 
+    def test_an_m2m_record_resolves_to_its_client_id_with_the_credential_untouched(self, tmp_path, monkeypatch):
+        # S1 contract (sc-32676): the client id is the principal, and the `m2m$` prefix is
+        # plaid's to decode — resolving must pass the credential through byte for byte.
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG,
+                                 password="m2m$dose-secret", superuser="7a1b2c3d-client-id")
+        assert (resolved.superuser, resolved.password) == ("7a1b2c3d-client-id", "m2m$dose-secret")
+
+    def test_a_prefixed_pat_record_still_falls_back_to_token(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, DATABRICKS_LAKEHOUSE_CFG, password="pat$dapi1")
+        assert (resolved.superuser, resolved.password) == ("token", "pat$dapi1")
+
     def test_the_fixed_principal_table_is_databricks_only(self):
         # Membership is the whole behaviour of the table: an entry for an engine that DOES take
         # a configured account would mask a missing superuser instead of raising, and would

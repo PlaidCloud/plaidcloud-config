@@ -127,9 +127,6 @@ SAMPLE_CONFIG = {
         "db_url": "postgresql://superset:5432/superset",
         "use_events_handler": False,
     },
-    "client_usage": {
-        "db_url": "postgresql://client_usage:pw@pg:5432/client_usage",
-    },
     "ai_chat_history": {
         "langchain_db_url": "postgresql://langchain:5432/langchain",
         "conversation_db_url": "postgresql://conv:5432/conv",

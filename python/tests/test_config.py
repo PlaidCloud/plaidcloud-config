@@ -29,7 +29,6 @@ ServiceConfig = config_mod.ServiceConfig
 OpenSearchConfig = config_mod.OpenSearchConfig
 SupersetConfig = config_mod.SupersetConfig
 AIChatHistoryConfig = config_mod.AIChatHistoryConfig
-ClientUsageConfig = config_mod.ClientUsageConfig
 LokiConfig = config_mod.LokiConfig
 SharedPostgresConfig = config_mod.SharedPostgresConfig
 OAuthConfig = config_mod.OAuthConfig
@@ -372,26 +371,6 @@ class TestSupersetConfig:
         ss = missing_config.superset
         assert ss.username == "admin"
         assert ss.use_events_handler is True
-
-
-# ---------------------------------------------------------------------------
-# ClientUsageConfig
-# ---------------------------------------------------------------------------
-
-class TestClientUsageConfig:
-
-    def test_from_file(self, plaid_config):
-        cu = plaid_config.client_usage
-        assert isinstance(cu, ClientUsageConfig)
-        assert cu.db_url == "postgresql://client_usage:pw@pg:5432/client_usage"
-
-    def test_defaults(self, missing_config):
-        assert missing_config.client_usage.db_url == ""
-
-    def test_env_override_alone_supplies_db_url(self, missing_config, monkeypatch):
-        # The dedicated client-usage-db Secret reaches the pod only as this env var.
-        monkeypatch.setenv("PLAID_CFG00client_usage00db_url", "postgresql://u:p@h:5432/client_usage")
-        assert config_mod.PlaidConfig().client_usage.db_url == "postgresql://u:p@h:5432/client_usage"
 
 
 # ---------------------------------------------------------------------------

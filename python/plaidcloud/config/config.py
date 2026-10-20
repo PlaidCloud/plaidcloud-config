@@ -431,10 +431,6 @@ class ErpPostingLedgerConfig(NamedTuple):
     db_url: str = ""
 
 
-class ClientUsageConfig(NamedTuple):
-    db_url: str = ""
-
-
 class AIChatHistoryConfig(NamedTuple):
     langchain_db_url: str = ""
     conversation_db_url: str = ""
@@ -666,11 +662,6 @@ class PlaidConfig:
     def erp_posting_ledger(self) -> ErpPostingLedgerConfig:
         erp_posting_ledger_config = self.cfg.get('erp_posting_ledger', {})
         return ErpPostingLedgerConfig(**{k: v for k, v in erp_posting_ledger_config.items() if k in ErpPostingLedgerConfig._fields})
-
-    @property
-    def client_usage(self) -> ClientUsageConfig:
-        client_usage_config = self.cfg.get('client_usage', {})
-        return ClientUsageConfig(**{k: v for k, v in client_usage_config.items() if k in ClientUsageConfig._fields})
 
     @property
     def stripe(self) -> StripeConfig:

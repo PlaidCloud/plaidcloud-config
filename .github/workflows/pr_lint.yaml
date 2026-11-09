@@ -80,3 +80,20 @@ jobs:
         with:
           pytest-xml-coverage-path: python/coverage.xml
           junitxml-path: python/test-results.xml
+  # The one status context to mark required. Branch protection counts a SKIPPED
+  # check as passing, so this runs always and fails if lint/tests did not succeed
+  # (e.g. skipped on a draft: `gh pr ready --undo && gh pr ready`).
+  pr-required:
+    name: pr-required
+    if: ${{ always() }}
+    needs: [reviewdog, test]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          if jq -e 'any(.[]; .result != "success")' <<<"$NEEDS" >/dev/null; then
+            echo "::error::lint or tests did not succeed (failed, cancelled, or skipped on a draft)"
+            exit 1
+          fi

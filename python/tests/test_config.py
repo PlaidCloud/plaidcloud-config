@@ -932,6 +932,67 @@ class TestResolveLakehouse:
         resolved = self._resolve(tmp_path, monkeypatch, MINTED_LAKEHOUSE_CFG)
         assert resolved.superuser == "root"
 
+    # --- network{}: the private-host preference ----------------------------------------
+
+    @staticmethod
+    def _with_network(network):
+        record = {**MINTED_LAKEHOUSE_CFG["database"]["lakehouses"][0]}
+        if network is not None:
+            record["network"] = network
+        return {"database": {**MINTED_LAKEHOUSE_CFG["database"], "lakehouses": [record]}}
+
+    def test_loader_keeps_network(self, tmp_path, monkeypatch):
+        network = {"cloud": "gcp", "region": "us-east4", "path": "private",
+                   "private_hostname": "sr.priv.example", "endpoint_ips": ["10.0.0.5"]}
+        lakehouse, = _config_from(tmp_path, monkeypatch, self._with_network(network)).lakehouses
+        assert lakehouse.network == network
+
+    def test_network_defaults_to_none(self, tmp_path, monkeypatch):
+        lakehouse, = _config_from(tmp_path, monkeypatch, self._with_network(None)).lakehouses
+        assert lakehouse.network is None
+
+    def test_public_path_resolves_coordinates_hostname(self, tmp_path, monkeypatch):
+        network = {"cloud": "gcp", "region": "us-east4", "path": "public",
+                   "private_hostname": "sr.priv.example"}
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network(network))
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_private_path_resolves_private_hostname(self, tmp_path, monkeypatch):
+        network = {"cloud": "gcp", "region": "us-east4", "path": "private",
+                   "private_hostname": "sr.priv.example"}
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network(network))
+        assert resolved.hostname == "sr.priv.example"
+
+    def test_private_path_without_private_hostname_falls_back_to_coordinates(self, tmp_path, monkeypatch):
+        network = {"cloud": "gcp", "region": "us-east4", "path": "private"}
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network(network))
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_no_network_resolves_coordinates_hostname(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network(None))
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_non_dict_network_resolves_coordinates_hostname(self, tmp_path, monkeypatch):
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network("private"))
+        assert resolved.hostname == "starrocks-fe-service"
+
+    def test_disabled_record_with_private_network_still_raises(self, tmp_path, monkeypatch):
+        network = {"path": "private", "private_hostname": "sr.priv.example"}
+        with pytest.raises(ValueError, match="disabled"):
+            self._resolve(tmp_path, monkeypatch, self._with_network(network), disabled=True)
+
+    @pytest.mark.usefixtures("fresh_warnings")
+    def test_network_is_a_declared_key_and_logs_no_warning(self, tmp_path, monkeypatch, caplog):
+        network = {"path": "private", "private_hostname": "sr.priv.example"}
+        with caplog.at_level(logging.WARNING, logger="plaidcloud.config.config"):
+            assert _config_from(tmp_path, monkeypatch, self._with_network(network)).lakehouses
+        assert caplog.text == ""
+
+    def test_private_hostname_is_stripped_and_lowercased(self, tmp_path, monkeypatch):
+        network = {"path": "private", "private_hostname": "  SR.Priv.Example \n"}
+        resolved = self._resolve(tmp_path, monkeypatch, self._with_network(network))
+        assert resolved.hostname == "sr.priv.example"
+
     def test_a_minted_record_inherits_the_tenant_lakekeeper(self, tmp_path, monkeypatch):
         # `catalog: None` must NOT mean DatabaseConfig's class defaults: the class default
         # `http://lakekeeper:8181` names no Service in a tenant namespace, and

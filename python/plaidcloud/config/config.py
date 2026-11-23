@@ -112,6 +112,9 @@ class LakehouseConfig(NamedTuple):
     catalog: dict | None = None
     compute: dict | None = None
     credential_ref: str = ""
+    # Server-owned reachability: {cloud, region, path, private_hostname?, endpoint_ips?}.
+    # Private endpoint data lives here and never in `coordinates`, which the tenant can edit.
+    network: dict | None = None
 
 
 #: A customer-owned lakehouse, identified as cp-rest identifies one
@@ -223,6 +226,11 @@ def resolve_lakehouse(lakehouse: LakehouseConfig, tenant_default: DatabaseConfig
             f'lakehouse {lakehouse.id!r} ({lakehouse.name!r}) names no warehouse: '
             f'engine={lakehouse.engine!r}, coordinates.hostname={hostname!r}'
         )
+
+    network = _dict_field(lakehouse, 'network')
+    if network.get('path') == 'private':
+        private_host = (network.get('private_hostname') or '').strip().lower()
+        hostname = private_host or hostname
 
     customer = is_customer_lakehouse(lakehouse)
     inherited = _NO_INHERITANCE if customer else tenant_default
